@@ -15,6 +15,7 @@ import { useLoginMutation } from "@/features/api/authApi";
 import { useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useActions } from "@/hooks/use-action";
+import { baseUrl } from "@/lib/utils";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -23,6 +24,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const LoginForm = () => {
+  const [isLoadingMicrosoft, setIsLoadingMicrosoft] = useState(false);
   const navigate = useNavigate();
   const [login, { isLoading, error, status }] = useLoginMutation();
   const [loginErrors, setLoginErrors] = useState(null);
@@ -37,15 +39,19 @@ const LoginForm = () => {
   });
 
   const handleMicrosoftLogin = () => {
-    // This would connect to Microsoft Authentication API
-    console.log("Logging in with Microsoft...");
+    setIsLoadingMicrosoft(true);
+    fetch(baseUrl + "/auth/microsoft/login", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        window.location.href = data?.link;
+      })
   };
-
-  const handleGoogleLogin = () => {
-    // This would connect to Google Authentication API
-    console.log("Logging in with Google...");
-  };
-
   const handleLogin = async (data: LoginFormValues) => {
     if (isLoading) return;
     const payload = {
@@ -68,6 +74,15 @@ const LoginForm = () => {
           if (role.toLowerCase() === 'admin') {
             navigate('/admin')
           }
+          if (role.toLowerCase() === 'employee') {
+            navigate('/dashboard')
+          }
+          if (role.toLowerCase() === 'manager') {
+            navigate('/manager')
+          }
+          if (role.toLowerCase() === 'hr') {
+            navigate('/hr')
+          }
         }
       }).catch(erro => {
         setLoginErrors(erro)
@@ -88,10 +103,10 @@ const LoginForm = () => {
 
   return (
     <Tabs defaultValue="login" className="w-full">
-      <TabsList className="grid w-full grid-cols-2 mb-6">
+      {/* <TabsList className="grid w-full grid-cols-2 mb-6">
         <TabsTrigger value="login">Login</TabsTrigger>
         <TabsTrigger value="register">Register</TabsTrigger>
-      </TabsList>
+      </TabsList> */}
 
       <TabsContent value="login">
         <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md mx-auto">

@@ -1,19 +1,14 @@
-
-import { useState } from "react";
-import { format, parse } from "date-fns";
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import {
   Dialog,
   DialogContent,
@@ -23,271 +18,393 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { CalendarIcon, Plus, Edit, Trash } from "lucide-react";
+import { Edit, Plus, Loader, Trash2, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { TableHeader, TableRow, TableHead, TableBody, TableCell, Table } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { Holiday } from "@/types";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { useCreateHolidayMutation, useDeleteHolidayMutation, useGetAllHolidaysQuery, useUpdateHolidayMutation } from '@/features/api';
 
-const HolidayManager = () => {
-  // Mock holidays data
-  const [holidays, setHolidays] = useState<Holiday[]>([
-    {
-      id: "1",
-      name: "New Year's Day",
-      date: new Date(2025, 0, 1),
-      isRestricted: true,
-    },
-    {
-      id: "2",
-      name: "Martin Luther King Jr. Day",
-      date: new Date(2025, 0, 20),
-      isRestricted: true,
-    },
-    {
-      id: "3",
-      name: "Memorial Day",
-      date: new Date(2025, 4, 26),
-      isRestricted: true,
-    },
-    {
-      id: "4",
-      name: "Independence Day",
-      date: new Date(2025, 6, 4),
-      isRestricted: true,
-    },
-    {
-      id: "5",
-      name: "Labor Day",
-      date: new Date(2025, 8, 1),
-      isRestricted: true,
-    },
-    {
-      id: "6",
-      name: "Thanksgiving Day",
-      date: new Date(2025, 10, 27),
-      isRestricted: true,
-    },
-    {
-      id: "7",
-      name: "Christmas Day",
-      date: new Date(2025, 11, 25),
-      isRestricted: true,
-    },
-  ]);
+const holidaySchema = z.object({
+  name: z.string().min(1, 'Holiday name is required'),
+  date: z.date({
+    required_error: "Please select a date",
+  }),
+  isRecurring: z.boolean().default(false),
+  isRestricted: z.boolean().default(false),
+  restrictionReason: z.string().optional(),
+});
 
-  const [newHoliday, setNewHoliday] = useState<Partial<Holiday>>({
-    name: "",
-    date: new Date(),
-    isRestricted: true,
-  });
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+type HolidayValue = z.infer<typeof holidaySchema> & { id?: string };
 
-  const handleSaveHoliday = () => {
-    if (!newHoliday.name) {
-      toast({
-        title: "Error",
-        description: "Please enter a holiday name",
-        variant: "destructive",
-      });
-      return;
-    }
 
-    if (isEditing && newHoliday.id) {
-      // Update existing holiday
-      setHolidays(holidays.map(holiday =>
-        holiday.id === newHoliday.id ? { ...holiday, ...newHoliday } as Holiday : holiday
-      ));
 
-      toast({
-        title: "Holiday updated",
-        description: `${newHoliday.name} has been updated`,
-      });
-    } else {
-      // Add new holiday
-      const id = Math.random().toString(36).substr(2, 9);
-      setHolidays([...holidays, { ...newHoliday, id } as Holiday]);
+export const HolidayManager = () => {
 
-      toast({
-        title: "Holiday added",
-        description: `${newHoliday.name} has been added to the calendar`,
-      });
-    }
+  const [isAddDialogOpen, setAddDialogOpen] = useState<boolean>(false);
+  const [editingHoliday, setEditingHoliday] = useState<boolean>(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [isRestricted, setIsRestricted] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  const { data: holidays, isLoading } = useGetAllHolidaysQuery()
+  const [postCreateHoliday, postCreateHolidayState] = useCreateHolidayMutation()
 
-    resetDialog();
-  };
+  const [
+    updateHoliday,
+    updateHolidayState,
+  ] = useUpdateHolidayMutation()
+  const [deleteHoliday, deleteHolidayState] = useDeleteHolidayMutation()
 
-  const handleEdit = (holiday: Holiday) => {
-    setNewHoliday(holiday);
-    setIsEditing(true);
-    setDialogOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    setHolidays(holidays.filter(holiday => holiday.id !== id));
-    toast({
-      title: "Holiday deleted",
-      description: "The holiday has been removed from the calendar",
-    });
-  };
-
-  const resetDialog = () => {
-    setDialogOpen(false);
-    setNewHoliday({
+  const form = useForm<HolidayValue>({
+    resolver: zodResolver(holidaySchema),
+    defaultValues: {
       name: "",
       date: new Date(),
-      isRestricted: true,
-    });
-    setIsEditing(false);
+      isRecurring: false,
+      isRestricted: false,
+      restrictionReason: "",
+    }
+  });
+  const formattedDate = (date: Date) => new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+  const handleAddHoliday = (data: HolidayValue) => {
+
+    if (postCreateHolidayState.isLoading) return
+
+
+    const payload = {
+      name: data.name,
+      date: formattedDate(data.date),
+      recurring: data.isRecurring,
+      restricted: data.isRestricted,
+      restrictionReason: data?.restrictionReason ?? null,
+    }
+    postCreateHoliday(payload)
+      .unwrap()
+      .then((response) => {
+        setAddDialogOpen(false);
+        form.reset();
+        toast({
+          title: "Success",
+          description: "Holiday has been created",
+          variant: "default",
+        });
+      })
+      .catch((error) => {
+        console.error("Error creating holiday:", error);
+        toast({
+          title: "Error",
+          description: "Failed to create holiday",
+          variant: "destructive",
+        });
+      });
+  };
+
+  const handleUpdateHoliday = (data: HolidayValue) => {
+    if (updateHolidayState.isLoading) return
+    const payload = {
+      name: data.name,
+      date: formattedDate(data.date),
+      recurring: data.isRecurring,
+      restricted: data.isRestricted,
+      restrictionReason: data?.restrictionReason ?? null,
+    }
+    updateHoliday({ id: selectedId, data: payload })
+      .unwrap()
+      .then((response) => {
+        setAddDialogOpen(false);
+        form.reset();
+        toast({
+          title: "Success",
+          description: "Holiday has been updated",
+          variant: "default",
+        });
+      })
+      .catch((error) => {
+        console.error("Error updating holiday:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update holiday",
+          variant: "destructive",
+        });
+      });
+    setEditingHoliday(false);
+    setSelectedId(undefined);
+  };
+
+  const handleDeleteHoliday = (id: string) => {
+    if (deleteHolidayState.isLoading) return
+    deleteHoliday(id)
+      .unwrap()
+      .then((response) => {
+        toast({
+          title: "Success",
+          description: "Holiday has been deleted",
+          variant: "default",
+        });
+      })
+      .catch((error) => {
+        console.error("Error deleting holiday:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete holiday",
+          variant: "destructive",
+        });
+      });
+    setEditingHoliday(false);
+    setAddDialogOpen(false);
+    form.reset();
+  };
+
+  const openEditDialog = (data: any) => {
+    setEditingHoliday(true);
+    form.setValue("name", data?.name);
+    form.setValue("date", new Date(data?.date));
+    form.setValue("isRecurring", data?.recurring);
+    form.setValue("isRestricted", data?.restricted);
+    form.setValue("restrictionReason", data?.restrictionReason);
+    setIsRecurring(data?.recurring);
+    setIsRestricted(data?.restricted);
+    setSelectedDate(new Date(data?.date));
+    setAddDialogOpen(true);
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Holiday Calendar</h2>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+    <div className="space-y-4 p-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h2 className="text-xl font-semibold">Holidays</h2>
+        <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => {
-              setIsEditing(false);
-              setNewHoliday({
-                name: "",
-                date: new Date(),
-                isRestricted: true,
-              });
-            }}>
+            <Button onClick={() => form.reset()} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Add Holiday
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[500px] w-[95vw]">
             <DialogHeader>
-              <DialogTitle>{isEditing ? "Edit Holiday" : "Add New Holiday"}</DialogTitle>
+              <DialogTitle>{editingHoliday ? 'Edit Holiday' : 'Add New Holiday'}</DialogTitle>
               <DialogDescription>
-                {isEditing
-                  ? "Update the holiday details below."
-                  : "Add a new holiday to the company calendar."}
+                {editingHoliday ? 'Update the holiday details' : 'Create a new holiday'}
               </DialogDescription>
             </DialogHeader>
-
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right text-sm">Name</label>
-                <Input
-                  className="col-span-3"
-                  placeholder="Holiday name"
-                  value={newHoliday.name || ""}
-                  onChange={(e) => setNewHoliday({ ...newHoliday, name: e.target.value })}
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(editingHoliday ? handleUpdateHoliday : handleAddHoliday)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Holiday Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter holiday name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right text-sm">Date</label>
-                <div className="col-span-3">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newHoliday.date ? format(newHoliday.date, "PPP") : "Select a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Date</FormLabel>
                       <Calendar
                         mode="single"
-                        selected={newHoliday.date}
-                        onSelect={(date) => date && setNewHoliday({ ...newHoliday, date })}
-                        initialFocus
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                          setSelectedDate(date);
+                          field.onChange(date);
+                        }}
+                        className="rounded-md border"
+                        modifiers={{
+                          holidays: holidays?.holidays?.map((holiday) => new Date(holiday.date))
+                        }}
+                        modifiersClassNames={{
+                          holidays: "bg-red-500 text-white",
+                        }}
+                        components={{
+                          DayContent: ({ date }) => {
+                            const holiday = holidays?.holidays?.find(
+                              (h) => new Date(h.date).toDateString() === date.toDateString()
+                            );
+                            return (
+                              <div className="relative group">
+                                {date.getDate()}
+                                {holiday && (
+                                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                    {holiday.name}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          },
+                        }}
                       />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right text-sm">Restricted</label>
-                <div className="flex items-center space-x-2 col-span-3">
+                <div className="flex items-center space-x-2">
                   <Switch
-                    checked={newHoliday.isRestricted || false}
-                    onCheckedChange={(checked) => setNewHoliday({ ...newHoliday, isRestricted: checked })}
+                    id="isRecurring"
+                    checked={isRecurring}
+                    onCheckedChange={(checked) => {
+                      setIsRecurring(checked);
+                      form.setValue("isRecurring", checked);
+                    }}
                   />
-                  <span className="text-sm text-muted-foreground">
-                    {newHoliday.isRestricted
-                      ? "Leave cannot be taken on this date"
-                      : "Leave can be taken on this date"}
-                  </span>
+                  <label htmlFor="isRecurring" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Recurring Holiday
+                  </label>
                 </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={resetDialog}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveHoliday}>
-                {isEditing ? "Update Holiday" : "Add Holiday"}
-              </Button>
-            </DialogFooter>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="isRestricted"
+                    checked={isRestricted}
+                    onCheckedChange={(checked) => {
+                      setIsRestricted(checked);
+                      form.setValue("isRestricted", checked);
+                    }}
+                  />
+                  <label htmlFor="isRestricted" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Restricted Holiday
+                  </label>
+                </div>
+                {isRestricted && (
+                  <FormField
+                    control={form.control}
+                    name="restrictionReason"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Restriction Reason</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter restriction reason" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => {
+                    setAddDialogOpen(false);
+                    setEditingHoliday(false);
+                    form.reset();
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={postCreateHolidayState.isLoading || updateHolidayState.isLoading}>
+                    {postCreateHolidayState.isLoading || updateHolidayState.isLoading ? (
+                      <>
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
+                        {editingHoliday ? 'Updating' : 'Creating'}...
+                      </>
+                    ) : (
+                      editingHoliday ? 'Update' : 'Save'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Holiday Name</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {holidays.map((holiday) => (
-              <TableRow key={holiday.id}>
-                <TableCell className="font-medium">{holiday.name}</TableCell>
-                <TableCell>{format(holiday.date, "PPP")}</TableCell>
-                <TableCell>
-                  {holiday.isRestricted ? (
-                    <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
-                      Restricted
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
-                      Open
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(holiday)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(holiday.id)}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[150px]">Holiday Name</TableHead>
+                  <TableHead className="min-w-[120px]">Date</TableHead>
+                  <TableHead className="min-w-[100px]">Type</TableHead>
+                  <TableHead className="min-w-[150px]">Restrictions</TableHead>
+                  <TableHead className="min-w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {
+                  isLoading && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center">
+                        <div className="flex items-center justify-center p-4">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                }
+                {
+                  holidays?.holidays.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center">
+                        <div className="p-4">
+                          No holidays found
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                }
+                {holidays?.holidays.map((holiday) => (
+                  <TableRow key={holiday.id}>
+                    <TableCell className="font-medium">{holiday.name}</TableCell>
+                    <TableCell>{format(holiday.date, 'PPP')}</TableCell>
+                    <TableCell>
+                      <div className={`p-1 rounded text-center ${holiday.recurring ? 'bg-blue-500 text-white' : 'bg-gray-500 text-white'
+                        }`}>
+                        {holiday.recurring ? 'Recurring' : 'One-time'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {holiday.restricted ? (
+                        <div className="p-1 bg-red-500 text-white rounded text-center">
+                          {holiday?.restrictionReason}
+                        </div>
+                      ) : (
+                        <div className="p-1 bg-green-500 text-white rounded text-center">
+                          No Restrictions
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            openEditDialog(holiday);
+                            setSelectedId(holiday.id);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => { handleDeleteHoliday(holiday.id); setSelectedId(holiday.id); }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
-
-export default HolidayManager;

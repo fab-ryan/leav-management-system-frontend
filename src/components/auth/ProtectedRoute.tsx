@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { selectUser } from '@/features/auth/authSlice';
 import { Loader2 } from 'lucide-react';
 
-type UserRole = 'staff' | 'manager' | 'admin' | 'employee';
+type UserRole = 'staff' | 'manager' | 'admin' | 'employee' | 'hr';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
@@ -54,7 +54,9 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
         if (userRole === 'admin') {
             redirectPath = '/admin';
         } else if (userRole === 'manager') {
-            redirectPath = '/manager';
+            redirectPath = '/hr';
+        } else if (userRole === 'hr') {
+            redirectPath = '/hr';
         }
         return <Navigate to={redirectPath} replace />;
     }

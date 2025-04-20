@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { setUser, logout } from '@/features/auth/authSlice';
 import { useNavigate } from 'react-router-dom';
-
+import { useActions } from './use-action';
 export const useAuth = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [userRole, setUserRole] = useState<string | null>(null);
-    const dispatch = useDispatch();
+    const { logout, setUser } = useActions();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -18,22 +16,23 @@ export const useAuth = () => {
             if (token && role) {
                 setIsAuthenticated(true);
                 setUserRole(role);
-                dispatch(setUser({ role, token }));
+                setUser({ role, token });
             } else {
                 setIsAuthenticated(false);
                 setUserRole(null);
-                dispatch(logout());
+                logout();
             }
             setIsLoading(false);
         };
 
         checkAuth();
-    }, [dispatch]);
+    }, []);
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        dispatch(logout());
+        localStorage.clear();
+        logout();
+        setIsAuthenticated(false);
+        setUserRole(null);
         navigate('/login');
     };
 

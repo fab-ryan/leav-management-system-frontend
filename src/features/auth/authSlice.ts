@@ -1,15 +1,17 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { RootState } from '../../app/store';
+import { RootState } from '../../store';
 
 interface AuthState {
     user: {
         role: string;
         token: string;
     } | null;
+    profileCompleted: boolean;
 }
 
 const initialState: AuthState = {
     user: null,
+    profileCompleted: true,
 };
 
 const authSlice = createSlice({
@@ -21,11 +23,15 @@ const authSlice = createSlice({
         },
         logout: (state) => {
             state.user = null;
+            state.profileCompleted = true;
+        },
+        setProfileCompleted: (state, action) => {
+            state.profileCompleted = action.payload;
         },
     },
 });
 
-export const { setUser, logout } = authSlice.actions;
+export const { setUser, logout, setProfileCompleted } = authSlice.actions;
 
 // Selectors
 export const selectUser = (state: RootState) => state.auth.user;

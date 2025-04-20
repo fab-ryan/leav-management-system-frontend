@@ -5,7 +5,7 @@ import {
 } from 'react-redux';
 
 import AllActions from '../features/allAction';
-import { type AppDispatch, type RootState } from '../app/store';
+import { type AppDispatch, type RootState } from '../store';
 import { bindActionCreators } from '@reduxjs/toolkit';
 
 export const useActions = () => {

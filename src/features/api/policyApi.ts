@@ -25,6 +25,7 @@ export const leavePolicyApi = createApi({
             return headers;
         }
     }),
+    tagTypes: ["leave_policy"],
     endpoints: (builder) => ({
         leaveTypePolicies: builder.query<GetAllLeavePolicyResponse, void>({
             query: () => ({
@@ -40,18 +41,36 @@ export const leavePolicyApi = createApi({
             query: ({ id, data }) => ({
                 url: `leave-policies/${id}`,
                 method: 'patch',
-                data,
-            })
+                body: data,
+            }),
+            invalidatesTags: ["leave_policy"]
         }),
         postLeaveTypPolicy: builder.mutation<GetLeavePolicyResponse, { data: CreateLeavePolicy }>({
-            query: ({ data }) => ({
+            query: (data) => ({
                 url: `leave-policies`,
                 method: 'post',
-                data,
-            })
-        })
+                body: { ...data.data, isActive: true },
+            }),
+            invalidatesTags: ["leave_policy"]
+        }),
+        updateLeaveStatusPolicy: builder.mutation<GetLeavePolicyResponse, { id: string, status: boolean }>({
+            query: ({ id, status }) => ({
+                url: `leave-policies/${id}?status=${status}`,
+                method: 'put',
+            }),
+            invalidatesTags: ["leave_policy"]
+        }),
+        getDefaultLeavePolicy: builder.query<GetLeavePolicyResponse, void>({
+            query: () => ({
+                url: `/leave-policies/`
+            }),
+            providesTags: ["leave_policy"]
+        }),
 
 
     })
 })
-export const { useLeaveTypePoliciesQuery, useLeaveTypePolicyQuery, useUpdateLeaveTypPolicyMutation, usePostLeaveTypPolicyMutation } = leavePolicyApi;
+export const { useLeaveTypePoliciesQuery, useLeaveTypePolicyQuery, useUpdateLeaveTypPolicyMutation, usePostLeaveTypPolicyMutation,
+    useUpdateLeaveStatusPolicyMutation,
+    useGetDefaultLeavePolicyQuery
+} = leavePolicyApi;

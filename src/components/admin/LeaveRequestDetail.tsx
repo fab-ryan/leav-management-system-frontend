@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -11,12 +11,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { LeaveRequest } from "@/types";
+import { LeaveApplication, LeaveRequest } from "@/types";
 import { Check, X, FileText, Download } from "lucide-react";
 import UserAvatar from "@/components/ui/UserAvatar";
+import { redirectToFile } from "@/lib/utils";
 
 interface LeaveRequestDetailProps {
-  request: LeaveRequest | null;
+  request: LeaveApplication | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApprove: (id: string, comments: string) => void;
@@ -35,8 +36,8 @@ const LeaveRequestDetail = ({
   if (!request) return null;
 
   // Format date as DD MMM YYYY
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -46,7 +47,7 @@ const LeaveRequestDetail = ({
   // Calculate duration in days
   const calculateDuration = (start: Date, end: Date, isHalfDay: boolean) => {
     if (isHalfDay) return "0.5 day";
-    
+
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
@@ -103,32 +104,32 @@ const LeaveRequestDetail = ({
             Review the leave request details before approving or rejecting.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-6 py-4">
           <div className="flex items-center gap-4">
-            <UserAvatar 
-              name="Employee" 
-              size="lg" 
+            <UserAvatar
+              name={request.employee.name || "Unknown Employee"}
+              size="lg"
             />
             <div>
               <h3 className="font-medium text-lg">
-                {request.employee || "Unknown Employee"}
+                {request.employee.name || "Unknown Employee"}
               </h3>
               <p className="text-muted-foreground text-sm">
                 Requested on {formatDate(request.createdAt)}
               </p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4 border-t border-b py-4">
             <div>
               <p className="text-sm text-muted-foreground">Leave Type</p>
-              <p className="font-medium">{getLeaveTypeDisplay(request.type)}</p>
+              <p className="font-medium">{getLeaveTypeDisplay(request.leaveType)}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Duration</p>
               <p className="font-medium">
-                {calculateDuration(request.startDate, request.endDate, request.isHalfDay)}
+                {calculateDuration(new Date(request.startDate), new Date(request.endDate), request.isHalfDay)}
                 {request.isHalfDay && (
                   <span className="text-xs text-muted-foreground block">
                     {request.isMorning ? "Morning" : "Afternoon"}
@@ -145,24 +146,25 @@ const LeaveRequestDetail = ({
               <p className="font-medium">{formatDate(request.endDate)}</p>
             </div>
           </div>
-          
+
           {request.reason && (
             <div>
               <p className="text-sm text-muted-foreground mb-1">Reason</p>
               <p className="bg-gray-50 p-3 rounded-md text-sm">{request.reason}</p>
             </div>
           )}
-          
-          {request.documentUrls && request.documentUrls.length > 0 && (
+
+          {request.supportingDocuments && request.supportingDocuments.length > 0 && (
             <div>
               <p className="text-sm text-muted-foreground mb-1">Attached Documents</p>
               <div className="flex flex-wrap gap-2">
-                {request.documentUrls.map((doc, index) => (
+                {request.supportingDocuments.map((doc, index) => (
                   <Button
                     key={index}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-2"
+                    onClick={() => redirectToFile(doc.filePath)}
                   >
                     <FileText className="h-4 w-4" />
                     <span>Document {index + 1}</span>
@@ -172,7 +174,7 @@ const LeaveRequestDetail = ({
               </div>
             </div>
           )}
-          
+
           <div>
             <p className="text-sm text-muted-foreground mb-1">Comments (Optional)</p>
             <Textarea
@@ -183,7 +185,7 @@ const LeaveRequestDetail = ({
             />
           </div>
         </div>
-        
+
         <DialogFooter className="flex items-center space-x-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel

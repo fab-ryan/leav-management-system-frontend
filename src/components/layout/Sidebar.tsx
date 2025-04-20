@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -13,11 +13,15 @@ import {
   FileText,
   LogOut,
   BarChart2,
+  CalendarDays,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useActions, useSelector } from "@/hooks/use-action";
+import { useUserProfileQuery } from "@/features/api";
 
-type UserRole = 'staff' | 'manager' | 'admin' | 'employee';
+type UserRole = 'staff' | 'admin' | 'employee' | 'hr';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -33,14 +37,26 @@ interface NavItem {
 
 const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { userRole, handleLogout } = useAuth();
+  const [isLoggedOut, setIsLoggedOut] = useState(false);
+  const { data: userProfile } = useUserProfileQuery();
+  const { profileCompleted } = useSelector(state => state.auth) as { profileCompleted: boolean };
+  const { setProfileCompleted } = useActions();
+
+  // useEffect(() => {
+  //   if (!profileCompleted && location.pathname !== '/profile') {
+  //     navigate('/profile');
+  //   }
+  //   setProfileCompleted(userProfile?.employee?.profileCompleted);
+  // }, [location.pathname, navigate, profileCompleted, userProfile]);
 
   const managerItems: NavItem[] = [
     {
-      label: "Manager Dashboard",
-      href: "/manager",
+      label: "HR Dashboard",
+      href: "/hr",
       icon: <Users className="h-5 w-5" />,
-      roles: ['manager'] as UserRole[]
+      roles: ['hr', 'admin', 'manager'] as UserRole[]
     },
   ];
 
@@ -52,11 +68,23 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
       roles: ['admin'] as UserRole[]
     },
     {
+      label: "Holidays",
+      href: "/holidays",
+      icon: <CalendarDays className="h-5 w-5" />,
+      roles: ['admin', 'hr', 'manager'] as UserRole[]
+    },
+    {
       label: "Reports",
       href: "/reports",
       icon: <BarChart2 className="h-5 w-5" />,
-      roles: ['admin', 'manager'] as UserRole[]
+      roles: ['admin', 'hr', 'manager'] as UserRole[]
     },
+    {
+      label: "Settings",
+      href: "/settings",
+      icon: <Settings className="h-5 w-5" />,
+      roles: ['admin', 'hr', 'manager'] as UserRole[]
+    }
   ];
 
   const baseNavItems: NavItem[] = [
@@ -64,25 +92,25 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
       label: "Dashboard",
       href: "/dashboard",
       icon: <Home className="h-5 w-5" />,
-      roles: ['staff', 'manager', 'employee'] as UserRole[]
+      roles: ['staff', 'employee'] as UserRole[]
     },
     {
       label: "Leave Application",
       href: "/leave-application",
       icon: <FileText className="h-5 w-5" />,
-      roles: ['staff', 'manager', 'employee'] as UserRole[]
+      roles: ['staff', 'manager', 'employee', 'hr', 'admin'] as UserRole[]
     },
     {
       label: "Leave History",
       href: "/leave-history",
       icon: <Calendar className="h-5 w-5" />,
-      roles: ['staff', 'manager', 'employee'] as UserRole[]
+      roles: ['staff', 'manager', 'employee', 'hr', 'admin'] as UserRole[]
     },
     {
       label: "Calendar",
       href: "/calendar",
       icon: <Calendar className="h-5 w-5" />,
-      roles: ['staff', 'manager', 'admin', 'employee'] as UserRole[]
+      roles: ['staff', 'manager', 'admin', 'employee', 'hr'] as UserRole[]
     },
   ];
 
@@ -90,7 +118,43 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
     ...baseNavItems,
     ...managerItems,
     ...adminItems,
-  ].filter(item => item.roles.includes(userRole as UserRole)).sort((a, b) => a.label.localeCompare(b.label));
+  ].filter(item => item.roles.includes(userRole as UserRole))
+    .sort((a, b) => {
+      if (a.label === "Dashboard") return -1;
+      if (b.label === "Dashboard") return 1;
+
+      if (a.label.includes("Admin") || a.label.includes("HR")) {
+        if (b.label.includes("Admin") || b.label.includes("HR")) {
+          return a.label.localeCompare(b.label);
+        }
+        return -1;
+      }
+      if (b.label.includes("Admin") || b.label.includes("HR")) return 1;
+
+      return a.label.localeCompare(b.label);
+    });
+
+  const handleLogoutDefault = () => {
+    setIsLoggedOut(true);
+    setTimeout(() => {
+      localStorage.clear();
+      navigate('/login', {
+
+
+      });
+      setIsLoggedOut(false);
+      handleLogout();
+    }, 1000);
+  }
+  if (isLoggedOut) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center fixed inset-0 z-40
+      bg-white backdrop-blur-sm
+      ">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -157,7 +221,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
             <Button
               variant="ghost"
               className="w-full justify-start gap-2"
-              onClick={handleLogout}
+              onClick={handleLogoutDefault}
             >
               <LogOut className="h-5 w-5" />
               Logout

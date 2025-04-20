@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from '@/components/theme-provider';
 import Index from '@/pages/Index';
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
@@ -13,79 +14,127 @@ import Manager from '@/pages/Manager';
 import Reports from '@/pages/Reports';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import DefaultLayout from './components/layout/Default';
+import { HolidayManager } from "@/components/admin/HolidayManager";
+import { Profile } from "@/pages/Profile";
+import { useEffect } from 'react';
+import SettingManager from '@/components/admin/SettingManager';
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      {/* <Sonner /> */}
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['staff', 'employee', 'manager', 'admin']}>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/leave-application"
-            element={
-              <ProtectedRoute allowedRoles={['staff', 'employee', 'manager', 'admin']}>
-                <LeaveApplication />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/leave-history"
-            element={
-              <ProtectedRoute allowedRoles={['staff', 'employee', 'manager', 'admin']}>
-                <LeaveHistory />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path='/reports'
-            element={
-              <ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}>
-                <Reports />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/calendar"
-            element={
-              <ProtectedRoute allowedRoles={['staff', 'employee', 'manager', 'admin']}>
-                <Calendar />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/manager"
-            element={
-              <ProtectedRoute allowedRoles={['manager', 'admin']}>
-                <Manager />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <Admin />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system" storageKey="leave-management-theme">
+        <TooltipProvider>
+          <Toaster />
+          {/* <Sonner /> */}
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['staff', 'employee']}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leave-application"
+                element={
+                  <ProtectedRoute allowedRoles={['staff', 'employee', 'manager', 'admin', 'hr']}>
+                    <LeaveApplication />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/leave-history"
+                element={
+                  <ProtectedRoute allowedRoles={['staff', 'employee', 'manager', 'admin', 'hr']}>
+                    <LeaveHistory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path='/reports'
+                element={
+                  <ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}>
+                    <DefaultLayout>
+                      <Reports />
+                    </DefaultLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/calendar"
+                element={
+                  <ProtectedRoute allowedRoles={['staff', 'employee', 'manager', 'admin', 'hr']}>
+                    <Calendar />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/hr"
+                element={
+                  <ProtectedRoute allowedRoles={['manager', 'admin', 'hr']}>
+                    <Admin />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'admin', 'hr']}>
+                    <Admin />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/holidays"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'manager', 'hr']}>
+                    <DefaultLayout>
+
+                      <HolidayManager />
+                    </DefaultLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/profile" element={
+                <ProtectedRoute allowedRoles={['admin', 'employee', 'manager', 'hr']}>
+                  <DefaultLayout>
+
+                    <Profile />
+                  </DefaultLayout>
+                </ProtectedRoute>
+              } />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'hr', 'manager']}>
+                    <DefaultLayout>
+                      <SettingManager />
+                    </DefaultLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  )
+}
 
 export default App;

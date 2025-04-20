@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Upload, AlertCircle, Info } from "lucide-react";
+import { CalendarIcon, Upload, AlertCircle, Info, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -46,6 +46,14 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
+import {
+  useGetEmployeeLeavePolicyQuery,
+  useValidateLeaveTypeByDaysQuery,
+  useValidateLeaveTypeQuery,
+  useApplyLeaveMutation,
+  useGetAllHolidaysQuery
+} from "@/features/api";
+import { useNavigate } from "react-router-dom";
 
 const formSchema = z.object({
   leaveType: z.string({
@@ -64,16 +72,34 @@ const formSchema = z.object({
     .min(5, { message: "Reason must be at least 5 characters long" })
     .optional()
     .nullable(),
-  // In a real app, we'd handle file uploads differently
   documents: z.any().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
+type LeaveType = {
+  value: string;
+  label: string;
+  requiresReason: boolean;
+};
 const LeaveApplicationForm = () => {
+  const { data: holidays } = useGetAllHolidaysQuery()
   const [showHalfDayOptions, setShowHalfDayOptions] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
+  const [selecteLeaveType, setSelectedLeaveType] = useState<LeaveType | null>(null);
+  const [durationDays, setDurationDays] = useState<number | null>(null);
+  const [applyLeaveApplication, applyLeaveStates] = useApplyLeaveMutation();
+  const { data: validateLeave } = useValidateLeaveTypeQuery({ type: selecteLeaveType?.value?.toUpperCase() }, {
+    skip: !selecteLeaveType?.value,
+    refetchOnMountOrArgChange: true,
+  });
+  const { data: validateLeaveByDays } = useValidateLeaveTypeByDaysQuery({ type: selecteLeaveType?.value?.toUpperCase(), days: durationDays }, {
+    skip: !selecteLeaveType?.value || !durationDays,
+    refetchOnMountOrArgChange: true,
+  });
+  const navigate = useNavigate();
+
+  const { data: leavePolicy } = useGetEmployeeLeavePolicyQuery();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -87,82 +113,70 @@ const LeaveApplicationForm = () => {
   const isHalfDay = form.watch("isHalfDay");
   const startDate = form.watch("startDate");
   const endDate = form.watch("endDate");
-  
-  // Get the policy requirements based on leave type
-  const getLeaveTypePolicy = (type: string | undefined) => {
-    // This would come from your backend in a real app
-    switch(type) {
-      case "sick":
-        return {
-          requiresDocumentation: true,
-          requiresReason: true,
-          minDaysBeforeRequest: 0, // Can be requested same day
-          description: "Documentation required for absences longer than 2 days."
-        };
-      case "annual":
-        return {
-          requiresDocumentation: false,
-          requiresReason: false,
-          minDaysBeforeRequest: 14, // Two weeks notice
-          description: "Please apply at least 14 days before your planned leave."
-        };
-      case "personal":
-        return {
-          requiresDocumentation: false,
-          requiresReason: true,
-          minDaysBeforeRequest: 3,
-          description: "Personal leave should be requested at least 3 days in advance."
-        };
-      case "maternity":
-      case "paternity":
-        return {
-          requiresDocumentation: true,
-          requiresReason: false,
-          minDaysBeforeRequest: 30, // One month notice
-          description: "Please attach relevant medical documentation."
-        };
-      case "unpaid":
-        return {
-          requiresDocumentation: false,
-          requiresReason: true,
-          minDaysBeforeRequest: 14,
-          description: "Unpaid leave is subject to business needs and manager approval."
-        };
-      case "other":
-        return {
-          requiresDocumentation: true,
-          requiresReason: true,
-          minDaysBeforeRequest: 7,
-          description: "Please provide a detailed reason and supporting documents."
-        };
-      default:
-        return {
-          requiresDocumentation: false,
-          requiresReason: false,
-          minDaysBeforeRequest: 0,
-          description: ""
-        };
+
+  const leaveTypes: LeaveType[] = [
+    {
+      value: "annual",
+      label: "Annual Leave",
+      requiresReason: true,
+    },
+    {
+      value: "sick",
+      label: "Sick Leave",
+      requiresReason: true,
+    },
+    {
+      value: "personal",
+      label: "Personal Leave",
+      requiresReason: true,
+    },
+    {
+      value: "maternity",
+      label: "Maternity Leave",
+      requiresReason: true,
+    },
+    {
+      value: "paternity",
+      label: "Paternity Leave",
+      requiresReason: true,
+    },
+    {
+      value: "unpaid",
+      label: "Unpaid Leave",
+      requiresReason: true,
+    },
+    {
+      value: "other",
+      label: "Other",
+      requiresReason: true,
     }
-  };
-  
-  // Get the policy for the selected leave type
-  const leavePolicy = getLeaveTypePolicy(leaveType);
-  
+  ]
+
   // Calculate duration in days
   const calculateDuration = () => {
     if (!startDate || !endDate) return null;
     if (isHalfDay) return 0.5;
-    
+
     const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays;
   };
-  
+
+  //  I need when form changed the leave type
+  useEffect(() => {
+    form.watch((data) => {
+      if (data.leaveType) {
+        setSelectedLeaveType(leaveTypes.find((type) => type.value === data.leaveType) || null);
+      }
+    })
+    setDurationDays(calculateDuration() > 1 ? calculateDuration() : null);
+  }, [form, calculateDuration()]);
+
   const duration = calculateDuration();
-  
+
   // Require documents for sick leave over 2 days
-  const requiresDocuments = 
-    leavePolicy.requiresDocumentation || 
+  const requiresDocuments =
+    leavePolicy?.leave_policy?.requiresDocumentation ||
     (leaveType === "sick" && duration && duration > 2);
 
   // Toggle half-day options visibility
@@ -184,7 +198,7 @@ const LeaveApplicationForm = () => {
       form.setValue("documents", fileArray);
     }
   };
-  
+
   // Remove a selected file
   const removeFile = (index: number) => {
     const newFiles = [...documentFiles];
@@ -194,23 +208,62 @@ const LeaveApplicationForm = () => {
   };
 
   const onSubmit = async (data: FormValues) => {
-    setIsSubmitting(true);
-    
-    // Simulate API call with a timeout
-    setTimeout(() => {
-      console.log(data);
-      console.log("Files:", documentFiles);
-      
+    if (!validateLeave?.leave_validation || (!validateLeaveByDays?.leave_validation.isValid && !isHalfDay)) {
+      toast({
+        title: "Leave request failed",
+        description: "You cannot apply for this leave type.",
+      });
+      return;
+    }
+    if (applyLeaveStates.isLoading) {
+      return;
+    }
+    const formData = new FormData();
+    const formattedEndDate = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(endDate);
+    const formattedStartDate = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(endDate);
+    formData.append("startDate", formattedStartDate);
+    formData.append("endDate", formattedEndDate);
+    formData.append("leaveType", data.leaveType.toUpperCase());
+    formData.append("isHalfDay", isHalfDay && isHalfDay ? "true" : "false");
+    formData.append("isMorning", data.isMorning ? "true" : "false");
+    formData.append("reason", data.reason || "");
+    formData.append("status", "PENDING");
+    if (data.documents) {
+      for (const file of data.documents) {
+        formData.append("documents", file);
+      }
+    }
+    applyLeaveApplication(formData).unwrap().then(res => {
+      console.log(res, "res success");
       toast({
         title: "Leave request submitted",
         description: "Your leave request has been submitted for approval.",
+        variant: "success",
       });
-      
-      // Reset form
-      form.reset();
       setDocumentFiles([]);
-      setIsSubmitting(false);
-    }, 1500);
+      form.reset();
+      navigate('/leave-history')
+
+    }).catch(err => {
+      // I need if error is 400 the fomat or set error to 
+      if (err.status === 400) {
+        err?.errors?.map((error: any) => {
+          form.setError(error.field, {
+            message: error?.defaultMessage,
+          });
+        })
+      }
+
+
+    })
   };
 
   // Ensure end date is not before start date
@@ -218,7 +271,7 @@ const LeaveApplicationForm = () => {
     if (startDate && endDate && endDate < startDate) {
       form.setValue("endDate", startDate);
     }
-    
+
     // If it's half day, force end date to be same as start date
     if (isHalfDay && startDate) {
       form.setValue("endDate", startDate);
@@ -233,7 +286,7 @@ const LeaveApplicationForm = () => {
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Leave Details</h3>
               <Separator />
-              
+
               <FormField
                 control={form.control}
                 name="leaveType"
@@ -250,13 +303,11 @@ const LeaveApplicationForm = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="annual">Annual Leave</SelectItem>
-                        <SelectItem value="sick">Sick Leave</SelectItem>
-                        <SelectItem value="personal">Personal Leave</SelectItem>
-                        <SelectItem value="maternity">Maternity Leave</SelectItem>
-                        <SelectItem value="paternity">Paternity Leave</SelectItem>
-                        <SelectItem value="unpaid">Unpaid Leave</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {leaveTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label.toUpperCase()}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormDescription>
@@ -266,13 +317,21 @@ const LeaveApplicationForm = () => {
                   </FormItem>
                 )}
               />
+              {validateLeave?.leave_validation && !validateLeave?.leave_validation && (
+                <div className="p-3 bg-blue-50 text-red-800 rounded-md flex items-center">
+                  <Info className="h-4 w-4 mr-2" />
+                  <span className="font-medium text-sm">
+                    {validateLeave?.message}
+                  </span>
+                </div>
+              )}
 
-              {leaveType && leavePolicy.description && (
+              {leaveType && leavePolicy?.leave_policy?.description && (
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertTitle>Leave Policy</AlertTitle>
                   <AlertDescription>
-                    {leavePolicy.description}
+                    {leavePolicy?.leave_policy?.description}
                   </AlertDescription>
                 </Alert>
               )}
@@ -308,20 +367,46 @@ const LeaveApplicationForm = () => {
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
+                            modifiers={{
+                              holidays: holidays?.holidays?.map((holiday) => new Date(holiday.date))
+                            }}
+                            modifiersClassNames={{
+                              holidays: "bg-red-500 text-white",
+                            }}
                             disabled={(date) => {
                               // Disable dates before today + min days before request
                               const minDate = new Date();
-                              minDate.setDate(minDate.getDate() + leavePolicy.minDaysBeforeRequest);
+                              minDate.setDate(minDate.getDate() + leavePolicy?.leave_policy?.minDaysBeforeRequest || 0);
+                              if (!validateLeave?.leave_validation) {
+                                return true;
+                              }
                               return date < minDate;
                             }}
                             initialFocus
                             className="p-3 pointer-events-auto"
+                            components={{
+                              DayContent: ({ date }) => {
+                                const holiday = holidays?.holidays?.find(
+                                  (h) => new Date(h.date).toDateString() === date.toDateString()
+                                );
+                                return (
+                                  <div className="relative group">
+                                    {date.getDate()}
+                                    {holiday && (
+                                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                        {holiday.name}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              },
+                            }}
                           />
                         </PopoverContent>
                       </Popover>
-                      {leavePolicy.minDaysBeforeRequest > 0 && (
+                      {leavePolicy?.leave_policy?.minDaysBeforeRequest > 0 && (
                         <FormDescription>
-                          Must be requested at least {leavePolicy.minDaysBeforeRequest} days in advance
+                          Must be requested at least {leavePolicy?.leave_policy?.minDaysBeforeRequest} days in advance
                         </FormDescription>
                       )}
                       <FormMessage />
@@ -363,15 +448,41 @@ const LeaveApplicationForm = () => {
                             disabled={(date) => {
                               // Disabled if no start date or if date is before start date
                               const minDate = new Date();
-                              minDate.setDate(minDate.getDate() + leavePolicy.minDaysBeforeRequest);
+                              minDate.setDate(minDate.getDate() + leavePolicy?.leave_policy?.minDaysBeforeRequest || 0);
+                              if (!validateLeave?.leave_validation) {
+                                return true;
+                              }
                               return (
-                                !startDate || 
-                                date < minDate || 
+                                !startDate ||
+                                date < minDate ||
                                 (startDate && date < startDate)
                               );
                             }}
                             initialFocus
+                            modifiers={{
+                              holidays: holidays?.holidays?.map((holiday) => new Date(holiday.date))
+                            }}
+                            modifiersClassNames={{
+                              holidays: "bg-red-500 text-white",
+                            }}
                             className="p-3 pointer-events-auto"
+                            components={{
+                              DayContent: ({ date }) => {
+                                const holiday = holidays?.holidays?.find(
+                                  (h) => new Date(h.date).toDateString() === date.toDateString()
+                                );
+                                return (
+                                  <div className="relative group">
+                                    {date.getDate()}
+                                    {holiday && (
+                                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                        {holiday.name}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              },
+                            }}
                           />
                         </PopoverContent>
                       </Popover>
@@ -386,9 +497,27 @@ const LeaveApplicationForm = () => {
                   <Info className="h-4 w-4 mr-2" />
                   <span className="font-medium text-sm">
                     Leave Duration: {duration} {duration === 1 ? 'day' : 'days'}
+                    {
+                      !isHalfDay && !validateLeaveByDays?.leave_validation?.isValid && (
+                        <span className="font-medium text-sm">
+
+                          {` but you have ${validateLeaveByDays?.leave_validation?.balance} days left`}
+                        </span>
+                      )
+                    }
                   </span>
                 </div>
               )}
+              {
+                validateLeaveByDays && !isHalfDay && !validateLeaveByDays?.leave_validation?.isValid && (
+                  <div className="p-3 bg-red-50 text-red-800 rounded-md flex items-center">
+                    <Info className="h-4 w-4 mr-2" />
+                    <span className="font-medium text-sm">
+                      {validateLeaveByDays?.message}
+                    </span>
+                  </div>
+                )}
+
 
               <FormField
                 control={form.control}
@@ -445,7 +574,7 @@ const LeaveApplicationForm = () => {
                   <FormItem>
                     <div className="flex items-center gap-2">
                       <FormLabel>
-                        Reason {leavePolicy.requiresReason && <span className="text-red-500">*</span>}
+                        Reason {selecteLeaveType?.requiresReason && <span className="text-red-500">*</span>}
                       </FormLabel>
                       <TooltipProvider>
                         <Tooltip>
@@ -454,8 +583,8 @@ const LeaveApplicationForm = () => {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>
-                              {leavePolicy.requiresReason 
-                                ? "A reason is required for this leave type" 
+                              {!showHalfDayOptions
+                                ? "A reason is required for this leave type"
                                 : "Optional but recommended"
                               }
                             </p>
@@ -487,7 +616,7 @@ const LeaveApplicationForm = () => {
                     <FormItem>
                       <div className="flex items-center gap-2">
                         <FormLabel>
-                          Supporting Documents {requiresDocuments && <span className="text-red-500">*</span>}
+                          Supporting Documents {!showHalfDayOptions && <span className="text-red-500">*</span>}
                         </FormLabel>
                         <TooltipProvider>
                           <Tooltip>
@@ -495,8 +624,8 @@ const LeaveApplicationForm = () => {
                               <Info className="h-4 w-4 text-gray-400" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>{leaveType === "sick" && duration && duration > 2 
-                                ? "Medical certificate required for sick leave over 2 days" 
+                              <p>{leaveType === "sick" && duration && duration > 2
+                                ? "Medical certificate required for sick leave over 2 days"
                                 : "Supporting documentation required for this leave type"
                               }</p>
                             </TooltipContent>
@@ -532,7 +661,7 @@ const LeaveApplicationForm = () => {
                               />
                             </label>
                           </div>
-                          
+
                           {/* Display selected files */}
                           {documentFiles.length > 0 && (
                             <div className="space-y-2">
@@ -541,10 +670,10 @@ const LeaveApplicationForm = () => {
                                 {documentFiles.map((file, index) => (
                                   <li key={index} className="flex items-center justify-between text-sm border rounded p-2">
                                     <span className="truncate">{file.name}</span>
-                                    <Button 
-                                      type="button" 
-                                      variant="ghost" 
-                                      size="sm" 
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
                                       className="h-8 w-8 p-0 text-red-500"
                                       onClick={() => removeFile(index)}
                                     >
@@ -569,11 +698,11 @@ const LeaveApplicationForm = () => {
 
             <div className="flex justify-end space-x-2">
               <Button variant="outline" type="button">Cancel</Button>
-              <Button 
+              <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={applyLeaveStates?.isLoading || !validateLeave?.leave_validation || (!validateLeaveByDays?.leave_validation?.isValid && !isHalfDay)}
               >
-                {isSubmitting ? "Submitting..." : "Submit Request"}
+                {applyLeaveStates?.isLoading ? "Submitting..." : "Submit Request"}
               </Button>
             </div>
           </form>

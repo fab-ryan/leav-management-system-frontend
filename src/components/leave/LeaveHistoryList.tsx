@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -17,6 +16,8 @@ import {
   Filter,
   Search,
   Eye,
+  Loader2,
+  ArrowUpDown,
 } from "lucide-react";
 import {
   Select,
@@ -41,12 +42,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "@/hooks/use-toast";
-import { LeaveRequest, LeaveStatus, LeaveType } from "@/types";
+import { LeaveApplication, LeaveRequest, LeaveStatus, LeaveType } from "@/types";
 import LeaveStatusBadge from "./LeaveStatusBadge";
 import LeaveRequestDetailsCard from "./LeaveRequestDetailsCard";
+import { useCancelLeaveApplicationMutation, useEmployeeApplicationsQuery, useGetAllHolidaysQuery } from "@/features/api";
 
 const LeaveHistoryList = () => {
+
+  const { data: holidays } = useGetAllHolidaysQuery()
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<LeaveStatus | "all">("all");
   const [filterType, setFilterType] = useState<LeaveType | "all">("all");
@@ -54,62 +64,38 @@ const LeaveHistoryList = () => {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedLeaveId, setSelectedLeaveId] = useState<string | null>(null);
-  const [selectedLeaveRequest, setSelectedLeaveRequest] = useState<LeaveRequest | null>(null);
+  const [selectedLeaveRequest, setSelectedLeaveRequest] = useState<LeaveApplication | null>(null);
+  const [cancelLeaveApplication, { isLoading: isCancelling, isSuccess: isCancelled }] = useCancelLeaveApplicationMutation()
+  const [querySelected, setQuerySelected] = useState<{
+    status?: string
+    type?: string
+    startDate?: string
+    endDate?: string
+  } | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [sortField, setSortField] = useState<string>("startDate");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const { data: leaveHistories, isLoading, refetch } = useEmployeeApplicationsQuery({
+    status: filterStatus !== "all" ? filterStatus : undefined,
+    type: filterType !== "all" ? filterType : undefined,
+    startDate: querySelected?.startDate,
+    endDate: querySelected?.endDate,
+    search: searchQuery.length > 2 ? searchQuery : undefined,
+    page: currentPage,
+    size: pageSize,
+    sort: `${sortDirection}`,
+  }, {
+    refetchOnReconnect: false,
+    refetchOnMountOrArgChange: true,
+  });
 
-  // Mock data
-  const mockLeaveHistory: LeaveRequest[] = [
-    {
-      id: "1",
-      userId: "user1",
-      type: "annual",
-      status: "approved",
-      startDate: new Date(2025, 3, 20),
-      endDate: new Date(2025, 3, 25),
-      isHalfDay: false,
-      reason: "Family vacation",
-      createdAt: new Date(2025, 3, 1),
-      updatedAt: new Date(2025, 3, 2),
-    },
-    {
-      id: "2",
-      userId: "user1",
-      type: "sick",
-      status: "approved",
-      startDate: new Date(2025, 2, 15),
-      endDate: new Date(2025, 2, 16),
-      isHalfDay: false,
-      reason: "Fever",
-      documentUrls: ["document1.pdf"],
-      createdAt: new Date(2025, 2, 14),
-      updatedAt: new Date(2025, 2, 14),
-    },
-    {
-      id: "3",
-      userId: "user1",
-      type: "personal",
-      status: "rejected",
-      startDate: new Date(2025, 1, 5),
-      endDate: new Date(2025, 1, 5),
-      isHalfDay: true,
-      isMorning: true,
-      reason: "Personal appointment",
-      comments: "Insufficient team coverage on this date",
-      createdAt: new Date(2025, 1, 1),
-      updatedAt: new Date(2025, 1, 2),
-    },
-    {
-      id: "4",
-      userId: "user1",
-      type: "annual",
-      status: "pending",
-      startDate: new Date(2025, 5, 10),
-      endDate: new Date(2025, 5, 15),
-      isHalfDay: false,
-      reason: "Summer vacation",
-      createdAt: new Date(2025, 4, 25),
-      updatedAt: new Date(2025, 4, 25),
-    },
-  ];
+  useEffect(() => {
+    if (isCancelling) return;
+    if (isCancelled) {
+      refetch();
+    }
+  }, [isCancelled,]);
 
   // Format date as DD MMM YYYY
   const formatDate = (date: Date) => {
@@ -123,7 +109,7 @@ const LeaveHistoryList = () => {
   // Calculate duration in days
   const calculateDuration = (start: Date, end: Date, isHalfDay: boolean) => {
     if (isHalfDay) return "0.5 day";
-    
+
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return `${diffDays} day${diffDays !== 1 ? 's' : ''}`;
@@ -151,56 +137,44 @@ const LeaveHistoryList = () => {
     }
   };
 
-  // Apply filters
-  const filteredLeaveHistory = mockLeaveHistory.filter((leave) => {
-    // Apply status filter
-    if (filterStatus !== "all" && leave.status !== filterStatus) {
-      return false;
-    }
-    
-    // Apply type filter
-    if (filterType !== "all" && leave.type !== filterType) {
-      return false;
-    }
-    
-    // Apply search query (search in type, status, and dates)
-    if (searchQuery) {
-      const leaveTypeDisplay = getLeaveTypeDisplay(leave.type).toLowerCase();
-      const leaveStatus = leave.status.toLowerCase();
-      const startDateStr = formatDate(leave.startDate).toLowerCase();
-      const endDateStr = formatDate(leave.endDate).toLowerCase();
-      const query = searchQuery.toLowerCase();
-      
-      return (
-        leaveTypeDisplay.includes(query) ||
-        leaveStatus.includes(query) ||
-        startDateStr.includes(query) ||
-        endDateStr.includes(query)
-      );
-    }
-    
-    return true;
-  });
 
-  // Handle cancel leave request
+
   const handleCancelRequest = () => {
-    console.log(`Cancelling leave request: ${selectedLeaveId}`);
-    
-    // Show success toast
-    toast({
-      title: "Leave request cancelled",
-      description: "Your leave request has been successfully cancelled",
-    });
-    
+    if (!selectedLeaveId) return;
+    if (isCancelling) return;
     setShowCancelDialog(false);
-    // In a real app, this would call an API to cancel the request
+    cancelLeaveApplication({ id: selectedLeaveId }).unwrap().then((res) => {
+      toast({
+        title: "Leave request cancelled",
+        description: res.message,
+      });
+
+    }).catch((err) => {
+      toast({
+        title: "Error cancelling leave request",
+        description: err.data.message,
+      });
+    });
+    setShowCancelDialog(false);
+
   };
 
   // Handle view details
-  const handleViewDetails = (leaveRequest: LeaveRequest) => {
+  const handleViewDetails = (leaveRequest: LeaveApplication) => {
     setSelectedLeaveRequest(leaveRequest);
     setShowDetailsDialog(true);
   };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const totalPages = leaveHistories?.leave_applications?.totalPages || 1;
 
   return (
     <div className="space-y-4">
@@ -215,7 +189,7 @@ const LeaveHistoryList = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        
+
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -254,7 +228,7 @@ const LeaveHistoryList = () => {
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Leave Type</label>
             <Select
@@ -279,43 +253,140 @@ const LeaveHistoryList = () => {
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Date Range</label>
-            <Button variant="outline" className="w-full justify-between text-left font-normal">
-              <span className="flex items-center">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Date Range
-              </span>
-              <ChevronDownIcon className="h-4 w-4 opacity-50" />
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between text-left font-normal"
+                >
+                  <span className="flex items-center">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {querySelected?.startDate && querySelected?.endDate
+                      ? `${querySelected.startDate} - ${querySelected.endDate}`
+                      : "Select Date Range"}
+                  </span>
+                  <ChevronDownIcon className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={{
+                    from: querySelected?.startDate
+                      ? new Date(querySelected.startDate)
+                      : undefined,
+                    to: querySelected?.endDate
+                      ? new Date(querySelected.endDate)
+                      : undefined,
+                  }}
+                  onSelect={(range) => {
+                    setQuerySelected({
+                      startDate: range?.from
+                        ? range.from.toISOString().split("T")[0]
+                        : undefined,
+                      endDate: range?.to
+                        ? range.to.toISOString().split("T")[0]
+                        : undefined,
+                    });
+                  }}
+                  modifiers={{
+                    holidays: holidays?.holidays?.map((holiday) => new Date(holiday.date))
+                  }}
+                  modifiersClassNames={{
+                    holidays: "bg-red-500 text-white",
+                  }}
+                  disabled={(date) => {
+                    const today = new Date();
+                    return date < today;
+                  }}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                  components={{
+                    DayContent: ({ date }) => {
+                      const holiday = holidays?.holidays?.find(
+                        (h) => new Date(h.date).toDateString() === date.toDateString()
+                      );
+                      return (
+                        <div className="relative group">
+                          {date.getDate()}
+                          {holiday && (
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              {holiday.name}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    },
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       )}
 
       <div className="rounded-md border">
+
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Leave Type</TableHead>
+              <TableHead
+                className="cursor-pointer"
+                onClick={() => handleSort("leaveType")}
+              >
+                <div className="flex items-center gap-1">
+                  Leave Type
+                  <ArrowUpDown className="h-4 w-4" />
+                </div>
+              </TableHead>
               <TableHead>Duration</TableHead>
-              <TableHead>Date Range</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead
+                className="cursor-pointer"
+                onClick={() => handleSort("startDate")}
+              >
+                <div className="flex items-center gap-1">
+                  Date Range
+                  <ArrowUpDown className="h-4 w-4" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="cursor-pointer"
+                onClick={() => handleSort("status")}
+              >
+                <div className="flex items-center gap-1">
+                  Status
+                  <ArrowUpDown className="h-4 w-4" />
+                </div>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredLeaveHistory.length === 0 ? (
+            {
+              isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : null
+            }
+            {leaveHistories?.leave_applications?.content?.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-6 text-gray-500">
                   No leave requests found
                 </TableCell>
               </TableRow>
             ) : (
-              filteredLeaveHistory.map((leave) => (
+              leaveHistories?.leave_applications?.content?.map((leave) => (
                 <TableRow key={leave.id}>
                   <TableCell className="font-medium">
-                    {getLeaveTypeDisplay(leave.type)}
+                    {getLeaveTypeDisplay(leave?.leaveType?.toLowerCase() as LeaveType)}
                   </TableCell>
                   <TableCell>
-                    {calculateDuration(leave.startDate, leave.endDate, leave.isHalfDay)}
+                    {calculateDuration(new Date(leave.startDate), new Date(leave.endDate), leave.isHalfDay)}
                     {leave.isHalfDay && (
                       <span className="text-xs text-gray-500 block">
                         {leave.isMorning ? "Morning" : "Afternoon"}
@@ -323,13 +394,13 @@ const LeaveHistoryList = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    {formatDate(leave.startDate)} 
-                    {!leave.isHalfDay && leave.startDate.getTime() !== leave.endDate.getTime() && 
-                      ` - ${formatDate(leave.endDate)}`
+                    {formatDate(new Date(leave.startDate))}
+                    {!leave.isHalfDay && new Date(leave.startDate).getTime() !== new Date(leave.endDate).getTime() &&
+                      ` - ${formatDate(new Date(leave.endDate))}`
                     }
                   </TableCell>
                   <TableCell>
-                    <LeaveStatusBadge status={leave.status} />
+                    <LeaveStatusBadge status={leave.status.toLowerCase() as LeaveStatus} />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -341,7 +412,7 @@ const LeaveHistoryList = () => {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {leave.status === "pending" && (
+                      {leave.status.toLowerCase() === "pending" && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -360,6 +431,51 @@ const LeaveHistoryList = () => {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center space-x-2">
+          <p className="text-sm text-gray-700">
+            Page {currentPage + 1} of {totalPages}
+          </p>
+          <Select
+            value={pageSize.toString()}
+            onValueChange={(value) => {
+              setPageSize(Number(value));
+              setCurrentPage(0);
+            }}
+          >
+            <SelectTrigger className="h-8 w-[70px]">
+              <SelectValue placeholder={pageSize} />
+            </SelectTrigger>
+            <SelectContent side="top">
+              {[10, 20, 30, 40, 50].map((size) => (
+                <SelectItem key={size} value={size.toString()}>
+                  {size}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 0, 1))}
+            disabled={currentPage === 0}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage + 1 === totalPages}
+          >
+            Next
+          </Button>
+        </div>
       </div>
 
       {/* Cancel Confirmation Dialog */}
@@ -387,7 +503,7 @@ const LeaveHistoryList = () => {
             <DialogTitle>Leave Request Details</DialogTitle>
           </DialogHeader>
           {selectedLeaveRequest && (
-            <LeaveRequestDetailsCard 
+            <LeaveRequestDetailsCard
               request={selectedLeaveRequest}
               onCancel={(id) => {
                 setSelectedLeaveId(id);

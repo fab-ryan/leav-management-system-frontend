@@ -9,9 +9,9 @@ interface LeaveStatusBadgeProps {
   showDot?: boolean;
 }
 
-const LeaveStatusBadge = ({ 
-  status, 
-  className = "", 
+const LeaveStatusBadge = ({
+  status,
+  className = "",
   variant = "medium",
   showDot = false
 }: LeaveStatusBadgeProps) => {
@@ -41,20 +41,19 @@ const LeaveStatusBadge = ({
   return (
     <Badge
       variant="outline"
-      className={`flex items-center gap-1.5 font-medium ${getBadgeStyles()} ${getVariantClass()}`}
+      className={`flex items-center gap-1.5 font-medium justify-center ${getBadgeStyles()} ${getVariantClass()}`}
     >
       {showDot && (
-        <span className={`h-2 w-2 rounded-full ${
-          status === "pending" ? "bg-yellow-500" :
-          status === "approved" ? "bg-green-500" :
-          status === "rejected" ? "bg-red-500" :
-          "bg-gray-500"
-        }`} />
+        <span className={`h-2 w-2 rounded-full ${status === "pending" ? "bg-yellow-500" :
+            status === "approved" ? "bg-green-500" :
+              status === "rejected" ? "bg-red-500" :
+                "bg-gray-500"
+          }`} />
       )}
       {status === "pending" ? "Pending" :
-       status === "approved" ? "Approved" :
-       status === "rejected" ? "Rejected" :
-       status === "cancelled" ? "Cancelled" : status}
+        status === "approved" ? "Approved" :
+          status === "rejected" ? "Rejected" :
+            status === "cancelled" ? "Cancelled" : status}
     </Badge>
   );
 };

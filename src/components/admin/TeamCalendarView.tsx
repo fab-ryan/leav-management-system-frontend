@@ -21,6 +21,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { LeaveRequest } from "@/types";
 import UserAvatar from "@/components/ui/UserAvatar";
+import { useGetAllDepartmentsQuery, useGetLeaveApplicationByDateQuery } from "@/features/api";
+import { formatDateToApi } from "@/lib/utils";
 
 // Mock data for team leaves
 const mockLeaveRequests = [
@@ -50,29 +52,24 @@ const mockLeaveRequests = [
   },
 ];
 
-// Mock data for departments
-const departments = [
-  { id: "1", name: "Engineering" },
-  { id: "2", name: "Design" },
-  { id: "3", name: "Marketing" },
-  { id: "4", name: "HR" },
-];
 
 const TeamCalendarView = () => {
+  const { data: departments } = useGetAllDepartmentsQuery()
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Function to get leaves for a specific date
-  const getLeavesForDate = (date: Date) => {
-    return mockLeaveRequests.filter(leave => {
-      const start = new Date(leave.startDate);
-      const end = new Date(leave.endDate);
-      return date >= start && date <= end;
-    });
-  };
+  const { data: leaveApplications, isLoading: isLoadingLeaveApplications } = useGetLeaveApplicationByDateQuery({
+    date: formatDateToApi(date?.toISOString()),
+    department: selectedDepartment === "all" ? null : selectedDepartment
+  }, {
+    skip: !date,
+    refetchOnMountOrArgChange: true,
 
-  // Function to get the color for a leave type
+  })
+
+
+
+
   const getLeaveColor = (type: string) => {
     switch (type) {
       case "annual":
@@ -86,7 +83,6 @@ const TeamCalendarView = () => {
     }
   };
 
-  // Function to get the status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "approved":
@@ -114,17 +110,14 @@ const TeamCalendarView = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Departments</SelectItem>
-              {departments.map(dept => (
+              {departments?.departments?.map(dept => (
                 <SelectItem key={dept.id} value={dept.id}>
                   {dept.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
+
         </div>
       </div>
 
@@ -134,7 +127,18 @@ const TeamCalendarView = () => {
             mode="single"
             selected={date}
             onSelect={setDate}
-            className="rounded-md border"
+            disabled={isLoadingLeaveApplications}
+            className="rounded-md border border-gray-200"
+            modifiers={{
+              teamLeave: (date) => leaveApplications?.leave_applications?.some(leave => new Date(leave.startDate) <= date && new Date(leave.endDate) >= date),
+            }}
+            modifiersStyles={{
+
+              teamLeave: {
+                backgroundColor: "#e5f0f8",
+                color: "#1e40af",
+              },
+            }}
           />
         </div>
         <div className="space-y-4">
@@ -142,7 +146,7 @@ const TeamCalendarView = () => {
             {date ? format(date, "MMMM d, yyyy") : "Select a date"}
           </h3>
           <div className="space-y-2">
-            {isLoading ? (
+            {isLoadingLeaveApplications ? (
               <div className="flex items-center justify-center p-4">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
@@ -156,18 +160,18 @@ const TeamCalendarView = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {getLeavesForDate(date).map(leave => (
-                    <TableRow key={leave.id}>
-                      <TableCell className="font-medium">{leave.employee}</TableCell>
+                  {leaveApplications?.leave_applications?.map((leave, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{leave.employee.name}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs ${getLeaveColor(leave.type)}`}>
-                          {leave.type.charAt(0).toUpperCase() + leave.type.slice(1)}
+                        <span className={`px-2 py-1 rounded-full text-xs  ${getLeaveColor(leave.leaveType.toLocaleLowerCase())}`}>
+                          {leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}
                         </span>
                       </TableCell>
-                      <TableCell>{getStatusBadge(leave.status)}</TableCell>
+                      <TableCell>{getStatusBadge(leave.status.toLocaleLowerCase())}</TableCell>
                     </TableRow>
                   ))}
-                  {getLeavesForDate(date).length === 0 && (
+                  {leaveApplications?.leave_applications?.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center text-muted-foreground">
                         No leaves scheduled for this date
