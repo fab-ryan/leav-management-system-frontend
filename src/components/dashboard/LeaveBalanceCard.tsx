@@ -19,42 +19,42 @@ export const LeaveBalanceCard = () => {
   // Mock data - would come from API
   const leaveBalances = {
     annual: {
-      used: leavePolicy?.policy?.annualAllowance - leaveBalance?.leave_balance?.annualAllowance || 0,
+      used: leaveBalance?.leave_balance?.annualBalance,
       total: leavePolicy?.policy?.annualAllowance || 0,
       name: "Annual Leave",
     },
     sick: {
-      used: leavePolicy?.policy?.sickAllowance - leaveBalance?.leave_balance?.sickAllowance || 0,
+      used: leaveBalance?.leave_balance?.sickBalance,
       total: leavePolicy?.policy?.sickAllowance || 0,
       name: "Sick Leave",
     },
     personal: {
-      used: leavePolicy?.policy?.personalAllowance - leaveBalance?.leave_balance?.personalAllowance || 0,
+      used: leaveBalance?.leave_balance?.personalBalance,
       total: leavePolicy?.policy?.personalAllowance || 0,
       name: "Personal Leave",
     },
     carryForward: {
-      used: leavePolicy?.policy?.carryForwardLimit - leaveBalance?.leave_balance?.carryForwardLimit || 0,
+      used: leaveBalance?.leave_balance?.carryForwardBalance,
       total: leavePolicy?.policy?.carryForwardLimit || 0,
       name: "Carry Forward",
     },
     maternity: {
-      used: leavePolicy?.policy?.maternityAllowance - leaveBalance?.leave_balance?.maternityAllowance || 0,
+      used: leaveBalance?.leave_balance?.maternityBalance,
       total: leavePolicy?.policy?.maternityAllowance || 0,
       name: "Maternity Leave",
     },
     paternity: {
-      used: leavePolicy?.policy?.paternityAllowance - leaveBalance?.leave_balance?.paternityAllowance || 0,
+      used: leaveBalance?.leave_balance?.paternityBalance,
       total: leavePolicy?.policy?.paternityAllowance || 0,
       name: "Paternity Leave",
     },
     unpaid: {
-      used: leavePolicy?.policy?.unpaidAllowance - leaveBalance?.leave_balance?.unpaidAllowance || 0,
+      used: leaveBalance?.leave_balance?.unpaidBalance,
       total: leavePolicy?.policy?.unpaidAllowance || 0,
       name: "Unpaid Leave",
     },
     other: {
-      used: leavePolicy?.policy?.otherAllowance - leaveBalance?.leave_balance?.otherAllowance || 0,
+      used: leaveBalance?.leave_balance?.otherBalance,
       total: leavePolicy?.policy?.otherAllowance || 0,
       name: "Other Leave",
     },
@@ -87,7 +87,7 @@ export const LeaveBalanceCard = () => {
             <div className="flex justify-between text-sm">
               <span>{name}</span>
               <span>
-                {total - used} remaining of {total} days
+                {used} remaining of {total} days
               </span>
             </div>
             <Progress value={calculatePercentage(used, total)} className="h-2" />

@@ -116,7 +116,6 @@ export const Profile = () => {
                                 <FormField
                                     control={form.control}
                                     name="name"
-                                    disabled={userProfile?.employee.profileCompleted}
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Name</FormLabel>

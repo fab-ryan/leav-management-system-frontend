@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +6,7 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
+    --background-content: 210, 20, 98;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -48,6 +48,7 @@
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
+    --background-content: 222.2 84% 4.9%;
 
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
@@ -73,7 +74,7 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
-    
+
     --sidebar-background: 200 74% 15%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 172 69% 25%;
@@ -91,10 +92,13 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground bg-background-content;
   }
 }
 
+.bg-background-content {
+  background-color: hsl(var(--background));
+}
 .animate-hover {
   @apply transition-all duration-300 ease-in-out;
 }
@@ -125,4 +129,14 @@
 
 .form-section {
   @apply bg-white rounded-lg shadow p-6 mb-6;
+}
+
+.bg-success {
+  background-color: #10b981;
+}
+.bg-warning {
+  background-color: #f59e0b;
+}
+.bg-info {
+  background-color: #0ea5e9;
 }

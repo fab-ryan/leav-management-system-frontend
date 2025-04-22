@@ -11,7 +11,7 @@ const Index = () => {
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center">
             <CalendarCheck className="h-6 w-6 text-primary mr-2" />
-            <span className="text-xl font-semibold text-primary">LeaveFlow</span>
+            <span className="text-xl font-semibold text-primary">IST Africa</span>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/login">
@@ -30,7 +30,7 @@ const Index = () => {
                 Simplify Leave Management for Your Organization
               </h1>
               <p className="text-lg text-gray-600">
-                LeaveFlow makes it easy to request, track, and manage employee leave. Streamline your
+                IST Africa makes it easy to request, track, and manage employee leave. Streamline your
                 workflow and keep your team organized.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
@@ -45,9 +45,9 @@ const Index = () => {
               </div>
             </div>
             <div className="bg-white p-8 rounded-xl shadow-lg">
-              <img 
-                src="/placeholder.svg" 
-                alt="LeaveFlow Dashboard" 
+              <img
+                src="/placeholder.svg"
+                alt="IST Africa Dashboard"
                 className="w-full h-auto rounded-lg"
               />
             </div>
@@ -144,7 +144,7 @@ const Index = () => {
             Ready to Streamline Your Leave Management?
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto mb-8">
-            Join organizations that use LeaveFlow to simplify their HR processes
+            Join organizations that use IST Africa to simplify their HR processes
           </p>
           <Link to="/login">
             <Button size="lg">Get Started Now</Button>
@@ -158,10 +158,10 @@ const Index = () => {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-4 md:mb-0">
               <CalendarCheck className="h-6 w-6 text-primary mr-2" />
-              <span className="text-xl font-semibold text-primary">LeaveFlow</span>
+              <span className="text-xl font-semibold text-primary">IST Africa</span>
             </div>
             <div className="text-sm text-gray-500">
-              © {new Date().getFullYear()} LeaveFlow. All rights reserved.
+              © {new Date().getFullYear()} IST Africa. All rights reserved.
             </div>
           </div>
         </div>

@@ -12,7 +12,7 @@ const Dashboard = () => {
   return (
     <>
       <Helmet>
-        <title>Dashboard - LeaveFlow</title>
+        <title>Dashboard - IST Africa</title>
       </Helmet>
       <div className="min-h-screen flex flex-col bg-gray-50">
         <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />

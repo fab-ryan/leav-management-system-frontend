@@ -19,21 +19,23 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   useCountUnreadNotificationsQuery, useGetNotificationsQuery, useMarkNotificationAsReadMutation, useGetUnreadNotificationsQuery,
-  useMarkAllNotificationsAsReadMutation
+  useMarkAllNotificationsAsReadMutation,
+  useLazyUserProfileQuery,
 } from "@/features/api";
 import { NotificationDetails } from "../notifications/NotificationDetails";
-import { Notification } from "@/types";
+import { EmployeeProfileResponse, Notification } from "@/types";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
 import { Moon, Sun } from "lucide-react";
+import { getProfilePictureUrl } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
 
   const navigate = useNavigate();
   const { handleLogout } = useAuth();
   const [isLoggedOut, setIsLoggedOut] = useState(false);
-  const { theme, setTheme } = useTheme();
 
   const { data: notifications, refetch: refetchNotifications } = useGetNotificationsQuery();
   const { data: unreadNotifications, refetch: refetchUnreadNotifications } = useGetUnreadNotificationsQuery();
@@ -41,6 +43,9 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [markAsRead] = useMarkNotificationAsReadMutation();
   const [markAllAsRead] = useMarkAllNotificationsAsReadMutation();
+  const [user, setUser] = useState<EmployeeProfileResponse | null>(null);
+  const [refetchUser] = useLazyUserProfileQuery();
+
   const handleNotificationClick = (notification: Notification) => {
     setSelectedNotification(notification);
     if (unreadNotifications?.notifications?.some(n => n.id === notification.id)) {
@@ -48,10 +53,29 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
     }
   };
   useEffect(() => {
+    refetchUser().then((res) => {
+      setUser(res.data);
+      if (res.data) {
+        if (!res.data?.employee?.profileCompleted && localStorage.getItem("profileWarning") !== "true") {
+          toast({
+            title: "Profile not completed",
+            description: "Please complete your profile to continue",
+            duration: 8000,
+            variant: "destructive",
+          });
+          localStorage.setItem("profileWarning", "true");
+        }
+      }
+    });
+  }, []);
+  useEffect(() => {
     refetchNotifications();
     refetchUnreadNotifications();
     refetchUnreadCount();
+
   }, [refetchNotifications, refetchUnreadNotifications, refetchUnreadCount, navigate]);
+
+
   const handleMarkAllAsRead = () => {
     if (unreadCount?.count > 0) {
       markAllAsRead();
@@ -64,9 +88,9 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
       localStorage.clear();
       navigate('/login', {
 
-
       });
       setIsLoggedOut(false);
+      localStorage.setItem("profileWarning", "false");
       handleLogout();
     }, 1000);
   }
@@ -91,22 +115,12 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
         </Button>
         <Link to="/" className="flex items-center">
           <Calendar className="h-6 w-6 text-primary mr-2" />
-          <span className="text-xl font-semibold text-primary">LeaveFlow</span>
+          <span className="text-xl font-semibold text-primary">IST Africa</span>
         </Link>
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-        >
-          {theme === "light" ? (
-            <Moon className="h-5 w-5" />
-          ) : (
-            <Sun className="h-5 w-5" />
-          )}
-        </Button>
+
 
         <Popover>
           <PopoverTrigger asChild>
@@ -130,19 +144,22 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
               {notifications?.notifications?.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-2 rounded cursor-pointer hover:bg-accent ${unreadNotifications?.notifications?.some(n => n.id === notification.id)
-                      ? "bg-accent/50"
+                  className={`p-2 rounded cursor-pointer hover:bg-gray-100
+                    
+                    ${unreadNotifications?.notifications?.some(n => n.id === notification.id)
+                      ? "bg-accent/80 text-accent-foreground hover:bg-accent/80 hover:text-accent/80"
                       : ""
+
                     }`}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex justify-between items-start">
                     <h4 className="font-medium">{notification.title}</h4>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs ">
                       {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                  <p className="text-sm  line-clamp-2">
                     {notification.message}
                   </p>
                 </div>
@@ -163,8 +180,8 @@ const Header = ({ toggleSidebar }: { toggleSidebar: () => void }) => {
               className="relative h-9 w-9 rounded-full"
             >
               <UserAvatar
-                name="John Doe"
-                imageUrl="/placeholder.svg"
+                name={user?.employee?.name ?? ""}
+                imageUrl={getProfilePictureUrl(user?.employee?.profilePictureUrl ?? "")}
                 size="sm"
               />
             </Button>

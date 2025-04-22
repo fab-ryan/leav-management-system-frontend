@@ -68,15 +68,21 @@ interface User {
   profileCompleted: boolean,
   team?: string
   location?: string
-  profilePictureUrl: any
+  profilePictureUrl?: string
   lastLoginAt: any
   leavePolicy: Policy
 }
 
 export interface GetAllUsersResponse extends Root {
-  users: User[]
+  users: UserPagination
 }
-
+interface UserPagination {
+  content: User[]
+  pageable: Pageable
+  last: boolean
+  totalElements: number
+  totalPages: number
+}
 export interface validateLeaveTypeResponse extends Root {
   leave_validation: boolean
 }
@@ -91,6 +97,9 @@ export interface ApplyLeaveResponse extends Root {
   leave_application: LeaveApplication
 }
 export interface GetAllLeaveApplicationsResponse extends Root {
+  leave_applications: LeavePagination
+}
+export interface GetAllLeaveApplicationsByDateResponse extends Root {
   leave_applications: LeaveApplication[]
 }
 export interface GetAllLeaveApplicationsByPaginationResponse extends Root {
@@ -109,7 +118,20 @@ interface LeavePagination {
   numberOfElements: number
   empty: boolean
 }
+export interface GetCompassionateLeaveResponse extends Root {
 
+  compassion_requests: CompassionateLeave[]
+}
+interface CompassionateLeave {
+  id: string
+  employee: User
+  workDate: string
+  reason: string
+  status: string
+  rejectionReason?: any
+  approvedBy?: User
+  approvedAt?: string
+}
 
 export interface Pageable {
   pageNumber: number
@@ -152,7 +174,7 @@ interface SupportingDocument {
 }
 
 export interface GetLeaveBalanceResponse extends Root {
-  leave_balance: LeaveBalance
+  leave_balance: LeaveBalances
 }
 interface LeaveBalance {
   id: string
@@ -168,7 +190,24 @@ interface LeaveBalance {
   createdAt: string
   updatedAt: string
 }
-
+export interface LeaveBalances {
+  id: string
+  employee: User
+  year: number
+  annualBalance: number
+  sickBalance: number
+  maternityBalance: number
+  paternityBalance: number
+  unpaidBalance: number
+  otherBalance: number
+  carryForwardBalance: number
+  personalBalance: number
+  createdAt: string
+  updatedAt: string
+}
+export interface GetAllLeavePoliciesBalanceResponse extends Root {
+  leave_balances: LeaveBalances[]
+}
 export interface GetEmployeeDashboardResponse extends Root {
   dashboard: Dashboard
 }
@@ -217,4 +256,49 @@ export interface GetUnreadNotificationsResponse extends Root {
 }
 export interface CountUnreadNotificationsResponse extends Root {
   count: number
+}
+
+export interface ManagerDashboardResponse extends Root {
+  dashboard: ManagerDashboard
+}
+interface ManagerDashboard {
+  leaveTypeMonthlyStats: LeaveTypeMonthlyStats
+  departmentLeaveDays: DepartmentLeaveDays
+  statusCounts: StatusCounts
+  statusRatios: StatusRatios
+}
+interface DepartmentLeaveDays {
+  [key: string]: LeaveType
+}
+interface LeaveTypeMonthlyStats {
+  [key: string]: LeaveType
+}
+interface LeaveType {
+  PERSONAL?: number
+  OTHER?: number
+  PATERNITY?: number
+  ANNUAL?: number
+  SICK?: number
+  UNPAID?: number
+  MATERNITY?: number
+}
+
+
+interface StatusCounts {
+  APPROVED: number
+  PENDING: number
+  REJECTED: number
+}
+
+interface StatusRatios {
+  APPROVED: number
+  CANCELLED: number
+  REJECTED: number
+  PENDING: number
+}
+interface StatusCounts {
+  APPROVED: number
+  CANCELLED: number
+  REJECTED: number
+  PENDING: number
 }

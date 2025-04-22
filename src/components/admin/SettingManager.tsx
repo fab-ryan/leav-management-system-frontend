@@ -23,6 +23,7 @@ const SettingManager = () => {
             ...prev,
             [key]: value
         }));
+
     };
 
     const handleSaveSettings = () => {

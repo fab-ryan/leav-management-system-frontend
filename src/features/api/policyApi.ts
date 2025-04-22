@@ -1,7 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 import { baseUrl } from '@/lib/utils';
-import { GetAllLeavePolicyResponse, GetLeavePolicyResponse } from '@/types'
+import { GetAllLeavePoliciesBalanceResponse, GetAllLeavePolicyResponse, GetLeavePolicyResponse } from '@/types'
 interface CreateLeavePolicy {
     name: string
     description: string
@@ -12,6 +12,10 @@ interface CreateLeavePolicy {
     requiresApproval: boolean
     requiresDocumentation: boolean
     minDaysBeforeRequest: number
+    maternityAllowance: number
+    paternityAllowance: number
+    unpaidAllowance: number
+    otherAllowance: number
 }
 export const leavePolicyApi = createApi({
     reducerPath: 'leavePolicyApi',
@@ -22,6 +26,8 @@ export const leavePolicyApi = createApi({
             if (token) {
                 headers.set('authorization', `Bearer ${token}`);
             }
+            headers.set('Content-Type', 'application/json');
+            headers.set('Accept', 'application/json');
             return headers;
         }
     }),
@@ -40,7 +46,7 @@ export const leavePolicyApi = createApi({
         updateLeaveTypPolicy: builder.mutation<GetLeavePolicyResponse, { id: string, data: CreateLeavePolicy }>({
             query: ({ id, data }) => ({
                 url: `leave-policies/${id}`,
-                method: 'patch',
+                method: 'put',
                 body: data,
             }),
             invalidatesTags: ["leave_policy"]
@@ -55,7 +61,7 @@ export const leavePolicyApi = createApi({
         }),
         updateLeaveStatusPolicy: builder.mutation<GetLeavePolicyResponse, { id: string, status: boolean }>({
             query: ({ id, status }) => ({
-                url: `leave-policies/${id}?status=${status}`,
+                url: `leave-policies/${id}/status?status=${status}`,
                 method: 'put',
             }),
             invalidatesTags: ["leave_policy"]
@@ -66,11 +72,26 @@ export const leavePolicyApi = createApi({
             }),
             providesTags: ["leave_policy"]
         }),
+        getAllLeavePoliciesBalance: builder.query<GetAllLeavePoliciesBalanceResponse, void>({
+            query: () => ({
+                url: `/leave-balances/admin`
+            }),
+            providesTags: ["leave_policy"]
+        }),
+        updateLeaveBalanceByAdmin: builder.mutation<any, { id: string, data: any }>({
+            query: ({ id, data }) => ({
+                url: `/leave-balances/${id}/admin`,
+                method: 'put',
+                body: data,
+            }),
+        }),
 
 
     })
 })
 export const { useLeaveTypePoliciesQuery, useLeaveTypePolicyQuery, useUpdateLeaveTypPolicyMutation, usePostLeaveTypPolicyMutation,
     useUpdateLeaveStatusPolicyMutation,
-    useGetDefaultLeavePolicyQuery
+    useGetDefaultLeavePolicyQuery,
+    useGetAllLeavePoliciesBalanceQuery,
+    useUpdateLeaveBalanceByAdminMutation
 } = leavePolicyApi;

@@ -194,12 +194,14 @@ const LeaveRequestDetail = ({
             variant="outline"
             className="bg-red-100 text-red-800 border-red-300 hover:bg-red-200"
             onClick={handleReject}
+            disabled={request.status === "REJECTED"}
           >
             <X className="mr-2 h-4 w-4" /> Reject
           </Button>
           <Button
             className="bg-green-600 hover:bg-green-700"
             onClick={handleApprove}
+            disabled={request.status === "APPROVED"}
           >
             <Check className="mr-2 h-4 w-4" /> Approve
           </Button>

@@ -4,7 +4,6 @@ import LoginForm from "@/components/auth/LoginForm";
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { useLazyUserProfileQuery, useUserProfileQuery } from "@/features/api/authApi";
 import { useActions, useSelector } from "@/hooks/use-action";
 const Login = () => {
   const { setUser } = useActions();
@@ -15,8 +14,7 @@ const Login = () => {
   const token = searchParams.get("token");
   const role = searchParams.get("role");
   const navigate = useNavigate();
-  const { data: userProfile, isLoading, error: userProfileError, refetch }
-    = useUserProfileQuery();
+
 
   useEffect(() => {
     if (error) {
@@ -38,7 +36,7 @@ const Login = () => {
         navigate('/dashboard')
       }
       if (role.toLowerCase() === 'manager') {
-        navigate('/manager')
+        navigate('/hr')
       }
       if (role.toLowerCase() === 'hr') {
         navigate('/hr')
@@ -54,7 +52,7 @@ const Login = () => {
   return (
     <>
       <Helmet>
-        <title>Login - LeaveFlow</title>
+        <title>Login - IST Africa</title>
       </Helmet>
       <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
         <div className="w-full max-w-md">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -157,8 +156,18 @@ const LeaveApplicationForm = () => {
     if (!startDate || !endDate) return null;
     if (isHalfDay) return 0.5;
 
-    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    let diffDays = 0;
+    const currentDate = new Date(startDate);
+    const endDateTime = new Date(endDate);
+
+    while (currentDate <= endDateTime) {
+      // Skip weekends (0 = Sunday, 6 = Saturday)
+      if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+        diffDays++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
     return diffDays;
   };
 
@@ -173,7 +182,10 @@ const LeaveApplicationForm = () => {
   }, [form, calculateDuration()]);
 
   const duration = calculateDuration();
-
+  const isWeekend = (date: Date) => {
+    const day = date.getDay();
+    return day === 0 || day === 6;
+  };
   // Require documents for sick leave over 2 days
   const requiresDocuments =
     leavePolicy?.leave_policy?.requiresDocumentation ||
@@ -228,7 +240,7 @@ const LeaveApplicationForm = () => {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-    }).format(endDate);
+    }).format(startDate);
     formData.append("startDate", formattedStartDate);
     formData.append("endDate", formattedEndDate);
     formData.append("leaveType", data.leaveType.toUpperCase());
@@ -242,7 +254,6 @@ const LeaveApplicationForm = () => {
       }
     }
     applyLeaveApplication(formData).unwrap().then(res => {
-      console.log(res, "res success");
       toast({
         title: "Leave request submitted",
         description: "Your leave request has been submitted for approval.",
@@ -253,6 +264,7 @@ const LeaveApplicationForm = () => {
       navigate('/leave-history')
 
     }).catch(err => {
+      console.log(err, "err");
       // I need if error is 400 the fomat or set error to 
       if (err.status === 400) {
         err?.errors?.map((error: any) => {
@@ -260,6 +272,17 @@ const LeaveApplicationForm = () => {
             message: error?.defaultMessage,
           });
         })
+        toast({
+          title: "Leave request failed",
+          description: err?.data?.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Leave request failed",
+          description: err?.data?.message,
+          variant: "destructive",
+        });
       }
 
 
@@ -367,6 +390,7 @@ const LeaveApplicationForm = () => {
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
+
                             modifiers={{
                               holidays: holidays?.holidays?.map((holiday) => new Date(holiday.date))
                             }}
@@ -378,6 +402,9 @@ const LeaveApplicationForm = () => {
                               const minDate = new Date();
                               minDate.setDate(minDate.getDate() + leavePolicy?.leave_policy?.minDaysBeforeRequest || 0);
                               if (!validateLeave?.leave_validation) {
+                                return true;
+                              }
+                              if (isWeekend(date)) {
                                 return true;
                               }
                               return date < minDate;
@@ -450,6 +477,9 @@ const LeaveApplicationForm = () => {
                               const minDate = new Date();
                               minDate.setDate(minDate.getDate() + leavePolicy?.leave_policy?.minDaysBeforeRequest || 0);
                               if (!validateLeave?.leave_validation) {
+                                return true;
+                              }
+                              if (isWeekend(date)) {
                                 return true;
                               }
                               return (

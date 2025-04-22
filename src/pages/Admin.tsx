@@ -7,7 +7,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Footer from "@/components/layout/Footer";
 import AdminPanel from "@/components/admin/AdminPanel";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
@@ -24,7 +24,7 @@ const Admin = () => {
   return (
     <>
       <Helmet>
-        <title>Admin Panel - LeaveFlow</title>
+        <title>Admin Panel - IST Africa</title>
       </Helmet>
       <div className="min-h-screen flex flex-col bg-gray-50">
         <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
@@ -51,7 +51,7 @@ const Admin = () => {
                 </Breadcrumb>
                 <h1 className="text-3xl font-bold mt-4">Admin Management Dashboard</h1>
                 <p className="text-muted-foreground mt-1">
-                  Manage leave policies, employees, and approve leave requests
+                  Manage Leave Policies, Employees, and Leave Balances
                 </p>
               </div>
               <AdminPanel />

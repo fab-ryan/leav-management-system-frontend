@@ -15,6 +15,7 @@ import {
   BarChart2,
   CalendarDays,
   Loader2,
+  Heart,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,7 +51,40 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
   //   }
   //   setProfileCompleted(userProfile?.employee?.profileCompleted);
   // }, [location.pathname, navigate, profileCompleted, userProfile]);
+  const adminItems: NavItem[] = [
+    {
+      label: "Admin Panel",
+      href: "/admin",
+      icon: <Settings className="h-5 w-5" />,
+      roles: ['admin'] as UserRole[]
+    },
+    {
+      label: "Holiday Management",
+      href: "/holidays",
+      icon: <CalendarDays className="h-5 w-5" />,
+      roles: ['admin', 'hr', 'manager'] as UserRole[]
+    },
+    {
+      label: "Employee Management",
+      href: "/employee-management",
+      icon: <Users className="h-5 w-5" />,
+      roles: ['admin', 'hr', 'manager'] as UserRole[]
+    },
+    {
+      label: "Leave Management",
+      href: "/leave-management",
+      icon: <FileText className="h-5 w-5" />,
+      roles: ['admin', 'hr', 'manager'] as UserRole[]
+    },
+    {
+      label: "Compassion Manager",
+      href: "/compassionate-leave-management",
+      icon: <Heart className="h-5 w-5" />,
+      roles: ['admin', 'hr', 'manager'] as UserRole[]
+    }
 
+
+  ];
   const managerItems: NavItem[] = [
     {
       label: "HR Dashboard",
@@ -60,32 +94,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
     },
   ];
 
-  const adminItems: NavItem[] = [
-    {
-      label: "Admin Panel",
-      href: "/admin",
-      icon: <Settings className="h-5 w-5" />,
-      roles: ['admin'] as UserRole[]
-    },
-    {
-      label: "Holidays",
-      href: "/holidays",
-      icon: <CalendarDays className="h-5 w-5" />,
-      roles: ['admin', 'hr', 'manager'] as UserRole[]
-    },
-    {
-      label: "Reports",
-      href: "/reports",
-      icon: <BarChart2 className="h-5 w-5" />,
-      roles: ['admin', 'hr', 'manager'] as UserRole[]
-    },
-    {
-      label: "Settings",
-      href: "/settings",
-      icon: <Settings className="h-5 w-5" />,
-      roles: ['admin', 'hr', 'manager'] as UserRole[]
-    }
-  ];
+
 
   const baseNavItems: NavItem[] = [
     {
@@ -104,7 +113,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
       label: "Leave History",
       href: "/leave-history",
       icon: <Calendar className="h-5 w-5" />,
-      roles: ['staff', 'manager', 'employee', 'hr', 'admin'] as UserRole[]
+      roles: ['staff', 'employee',] as UserRole[]
     },
     {
       label: "Calendar",
@@ -112,6 +121,12 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
       icon: <Calendar className="h-5 w-5" />,
       roles: ['staff', 'manager', 'admin', 'employee', 'hr'] as UserRole[]
     },
+    {
+      label: "Compassionate Leave",
+      href: "/compassionate-leave",
+      icon: <Heart className="h-5 w-5" />,
+      roles: ['staff', 'employee'] as UserRole[]
+    }
   ];
 
   const allItems = [
@@ -176,7 +191,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
           <div className="p-4 flex justify-between items-center border-b border-sidebar-border">
             <Link to="/" className="flex items-center">
               <Calendar className="h-6 w-6 mr-2" />
-              <span className="text-xl font-semibold">LeaveFlow</span>
+              <span className="text-xl font-semibold">IST Africa</span>
             </Link>
             <Button
               variant="ghost"
@@ -213,7 +228,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: SidebarProps) => {
 
           <div className="p-4 border-t border-sidebar-border">
             <div className="text-xs text-sidebar-foreground/70">
-              LeaveFlow v1.0
+              IST Africa v1.0
             </div>
           </div>
 

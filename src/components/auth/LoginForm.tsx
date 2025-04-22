@@ -78,7 +78,7 @@ const LoginForm = () => {
             navigate('/dashboard')
           }
           if (role.toLowerCase() === 'manager') {
-            navigate('/manager')
+            navigate('/hr')
           }
           if (role.toLowerCase() === 'hr') {
             navigate('/hr')
@@ -114,7 +114,7 @@ const LoginForm = () => {
             <div className="bg-primary/10 p-3 rounded-full mb-4">
               <Calendar className="h-10 w-10 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Welcome to LeaveFlow</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Welcome to IST Africa</h1>
             <p className="text-gray-500 mt-2 text-center">
               Sign in to manage your leave requests and view your balances
             </p>

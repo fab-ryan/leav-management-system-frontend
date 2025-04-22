@@ -53,6 +53,7 @@ import { LeaveApplication, LeaveRequest, LeaveStatus, LeaveType } from "@/types"
 import LeaveStatusBadge from "./LeaveStatusBadge";
 import LeaveRequestDetailsCard from "./LeaveRequestDetailsCard";
 import { useCancelLeaveApplicationMutation, useEmployeeApplicationsQuery, useGetAllHolidaysQuery } from "@/features/api";
+import { Card, CardContent } from "../ui/card";
 
 const LeaveHistoryList = () => {
 
@@ -78,7 +79,7 @@ const LeaveHistoryList = () => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const { data: leaveHistories, isLoading, refetch } = useEmployeeApplicationsQuery({
     status: filterStatus !== "all" ? filterStatus : undefined,
-    type: filterType !== "all" ? filterType : undefined,
+    type: filterType !== "all" ? filterType.toUpperCase() : undefined,
     startDate: querySelected?.startDate,
     endDate: querySelected?.endDate,
     search: searchQuery.length > 2 ? searchQuery : undefined,
@@ -326,111 +327,116 @@ const LeaveHistoryList = () => {
       )}
 
       <div className="rounded-md border">
+        <Card>
+          <CardContent>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead
-                className="cursor-pointer"
-                onClick={() => handleSort("leaveType")}
-              >
-                <div className="flex items-center gap-1">
-                  Leave Type
-                  <ArrowUpDown className="h-4 w-4" />
-                </div>
-              </TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead
-                className="cursor-pointer"
-                onClick={() => handleSort("startDate")}
-              >
-                <div className="flex items-center gap-1">
-                  Date Range
-                  <ArrowUpDown className="h-4 w-4" />
-                </div>
-              </TableHead>
-              <TableHead
-                className="cursor-pointer"
-                onClick={() => handleSort("status")}
-              >
-                <div className="flex items-center gap-1">
-                  Status
-                  <ArrowUpDown className="h-4 w-4" />
-                </div>
-              </TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {
-              isLoading ? (
+
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6 text-gray-500">
-                    <div className="flex items-center justify-center p-4">
-                      <Loader2 className="h-6 w-6 animate-spin" />
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("leaveType")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Leave Type
+                      <ArrowUpDown className="h-4 w-4" />
                     </div>
-                  </TableCell>
-                </TableRow>
-              ) : null
-            }
-            {leaveHistories?.leave_applications?.content?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-6 text-gray-500">
-                  No leave requests found
-                </TableCell>
-              </TableRow>
-            ) : (
-              leaveHistories?.leave_applications?.content?.map((leave) => (
-                <TableRow key={leave.id}>
-                  <TableCell className="font-medium">
-                    {getLeaveTypeDisplay(leave?.leaveType?.toLowerCase() as LeaveType)}
-                  </TableCell>
-                  <TableCell>
-                    {calculateDuration(new Date(leave.startDate), new Date(leave.endDate), leave.isHalfDay)}
-                    {leave.isHalfDay && (
-                      <span className="text-xs text-gray-500 block">
-                        {leave.isMorning ? "Morning" : "Afternoon"}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {formatDate(new Date(leave.startDate))}
-                    {!leave.isHalfDay && new Date(leave.startDate).getTime() !== new Date(leave.endDate).getTime() &&
-                      ` - ${formatDate(new Date(leave.endDate))}`
-                    }
-                  </TableCell>
-                  <TableCell>
-                    <LeaveStatusBadge status={leave.status.toLowerCase() as LeaveStatus} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => handleViewDetails(leave)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {leave.status.toLowerCase() === "pending" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedLeaveId(leave.id);
-                            setShowCancelDialog(true);
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      )}
+                  </TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("startDate")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Date Range
+                      <ArrowUpDown className="h-4 w-4" />
                     </div>
-                  </TableCell>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer"
+                    onClick={() => handleSort("status")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Status
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {
+                  isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                        <div className="flex items-center justify-center p-4">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : null
+                }
+                {leaveHistories?.leave_applications?.content?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                      No leave requests found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  leaveHistories?.leave_applications?.content?.map((leave) => (
+                    <TableRow key={leave.id}>
+                      <TableCell className="font-medium">
+                        {getLeaveTypeDisplay(leave?.leaveType?.toLowerCase() as LeaveType)}
+                      </TableCell>
+                      <TableCell>
+                        {calculateDuration(new Date(leave.startDate), new Date(leave.endDate), leave.isHalfDay)}
+                        {leave.isHalfDay && (
+                          <span className="text-xs text-gray-500 block">
+                            {leave.isMorning ? "Morning" : "Afternoon"}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {formatDate(new Date(leave.startDate))}
+                        {!leave.isHalfDay && new Date(leave.startDate).getTime() !== new Date(leave.endDate).getTime() &&
+                          ` - ${formatDate(new Date(leave.endDate))}`
+                        }
+                      </TableCell>
+                      <TableCell>
+                        <LeaveStatusBadge status={leave.status.toLowerCase() as LeaveStatus} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleViewDetails(leave)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {leave.status.toLowerCase() === "pending" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedLeaveId(leave.id);
+                                setShowCancelDialog(true);
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Pagination Controls */}
@@ -462,7 +468,7 @@ const LeaveHistoryList = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 0, 1))}
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 0))}
             disabled={currentPage === 0}
           >
             Previous

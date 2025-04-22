@@ -27,15 +27,34 @@ import * as z from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 
 export const EmployeeManager = () => {
     const [isAddDialogOpen, setAddDialogOpen] = useState<boolean>(false);
-    const { data: employees, isLoading, refetch } = useGetAllEmployeesQuery();
+    const [currentPage, setCurrentPage] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+    const { data: employees, isLoading, refetch } = useGetAllEmployeesQuery({
+        page: currentPage,
+        size: pageSize,
+        sort: sortDirection
+    },
+        {
+            refetchOnMountOrArgChange: true,
+        });
     const [searchTerm, setSearchTerm] = useState("");
     const [editEmployee, setEditEmployee] = useState(false);
     const [editEmployeeId, setEditEmployeeId] = useState<string | null>(null);
 
-    const filteredEmployees = employees?.users?.filter((employee) => {
+    const filteredEmployees = employees?.users?.content?.filter((employee) => {
         const searchLower = searchTerm.toLowerCase();
         return (
             employee.name.toLowerCase().includes(searchLower) ||
@@ -45,6 +64,7 @@ export const EmployeeManager = () => {
         );
     });
 
+    const totalPages = employees?.users?.totalPages || 1;
 
     const [postEmployee, postEmployeeState] = usePostEmployeeMutation()
     const { data: departments } = useGetAllDepartmentsQuery();
@@ -94,7 +114,7 @@ export const EmployeeManager = () => {
                     toast({
                         title: 'Success',
                         description: 'Employee created successfully',
-                        duration: 5000,
+                        duration: 500000,
                         variant: 'success',
                     });
 
@@ -347,74 +367,128 @@ export const EmployeeManager = () => {
         <Card>
             <CardContent className="p-0 mt-2">
                 {isLoading ?
-
                     <div className="p-4">
                         <Loader className="w-[40px] h-[40p] m-auto " />
                     </div>
                     :
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Department</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Leave Policy</TableHead>
-                                <TableHead>Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredEmployees?.map((employee) => (
-                                <TableRow key={employee.id}>
-                                    <TableCell className="font-medium">{employee.name}</TableCell>
-                                    <TableCell>{employee.email}</TableCell>
-                                    <TableCell>{employee?.department?.name.toUpperCase()}</TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant="outline"
-                                            className={
-                                                employee.role.toLowerCase() === "admin"
-                                                    ? "bg-purple-100 text-purple-800 border-purple-300"
-                                                    : employee.role === "manager"
-                                                        ? "bg-blue-100 text-blue-800 border-blue-300"
-                                                        : "bg-green-100 text-green-800 border-green-300"
-                                            }
-                                        >
-                                            {employee.role?.toLowerCase() === "admin"
-                                                ? "Admin"
-                                                : employee.role?.toLowerCase() === "manager"
-                                                    ? "Manager"
-                                                    : "Employee"}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{employee?.leavePolicy?.name}</TableCell>
-                                    <TableCell>
-                                        <div className="flex space-x-2">
-                                            <Button variant="ghost" size="icon"
-                                                onClick={() => {
-                                                    setEditEmployee(true);
-                                                    setAddDialogOpen(true);
-                                                    form.setValue('name', employee.name);
-                                                    form.setValue('email', employee.email);
-                                                    form.setValue('role', employee?.role as "ADMIN" | "MANAGER" | "STAFF" | "EMPLOYEE");
-                                                    form.setValue('phoneNumber', employee.phoneNumber);
-                                                    form.setValue('departmentId', employee?.department?.id ?? '');
-                                                    form.setValue('emergencyContact', employee?.emergencyPhoneNumber ?? '');
-                                                    form.setValue('emergencyPhoneNumber', employee?.emergencyPhoneNumber ?? '');
-                                                    form.setValue('team', employee?.team ?? '');
-                                                    form.setValue('location', employee?.location ?? '');
-                                                    setEditEmployeeId(employee.id);
-                                                }}
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
+                    <>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Department</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead>Leave Policy</TableHead>
+                                    <TableHead>Actions</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>}
+                            </TableHeader>
+                            <TableBody>
+                                {filteredEmployees?.map((employee) => (
+                                    <TableRow key={employee.id}>
+                                        <TableCell className="font-medium">{employee.name}</TableCell>
+                                        <TableCell>{employee.email}</TableCell>
+                                        <TableCell>{employee?.department?.name.toUpperCase()}</TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant="outline"
+                                                className={
+                                                    employee.role.toLowerCase() === "admin"
+                                                        ? "bg-purple-100 text-purple-800 border-purple-300"
+                                                        : employee.role === "manager"
+                                                            ? "bg-blue-100 text-blue-800 border-blue-300"
+                                                            : "bg-green-100 text-green-800 border-green-300"
+                                                }
+                                            >
+                                                {employee.role?.toLowerCase() === "admin"
+                                                    ? "Admin"
+                                                    : employee.role?.toLowerCase() === "manager"
+                                                        ? "Manager"
+                                                        : "Employee"}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>{employee?.leavePolicy?.name}</TableCell>
+                                        <TableCell>
+                                            <div className="flex space-x-2">
+                                                <Button variant="ghost" size="icon"
+                                                    onClick={() => {
+                                                        setEditEmployee(true);
+                                                        setAddDialogOpen(true);
+                                                        form.setValue('name', employee.name);
+                                                        form.setValue('email', employee.email);
+                                                        form.setValue('role', employee?.role as "ADMIN" | "MANAGER" | "STAFF" | "EMPLOYEE");
+                                                        form.setValue('phoneNumber', employee.phoneNumber);
+                                                        form.setValue('departmentId', employee?.department?.id ?? '');
+                                                        form.setValue('emergencyContact', employee?.emergencyPhoneNumber ?? '');
+                                                        form.setValue('emergencyPhoneNumber', employee?.emergencyPhoneNumber ?? '');
+                                                        form.setValue('team', employee?.team ?? '');
+                                                        form.setValue('location', employee?.location ?? '');
+                                                        setEditEmployeeId(employee.id);
+                                                    }}
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
 
+                        {/* Pagination Controls */}
+                        <div className="flex items-center justify-between px-2 py-4">
+                            <div className="flex items-center space-x-2">
+                                <p className="text-sm text-gray-700">
+                                    Page {currentPage + 1} of {totalPages}
+                                </p>
+                                <Select
+                                    value={pageSize.toString()}
+                                    onValueChange={(value) => {
+                                        setPageSize(Number(value));
+                                        setCurrentPage(0);
+                                    }}
+                                >
+                                    <SelectTrigger className="h-8 w-[70px]">
+                                        <SelectValue placeholder={pageSize} />
+                                    </SelectTrigger>
+                                    <SelectContent side="top">
+                                        {[10, 20, 30, 40, 50].map((size) => (
+                                            <SelectItem key={size} value={size.toString()}>
+                                                {size}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Pagination>
+                                <PaginationContent>
+                                    <PaginationItem>
+                                        <PaginationPrevious
+                                            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 0))}
+                                        // disabled={currentPage === 0}
+                                        />
+                                    </PaginationItem>
+                                    {Array.from({ length: totalPages }, (_, i) => (
+                                        <PaginationItem key={i}>
+                                            <PaginationLink
+                                                isActive={currentPage === i}
+                                                onClick={() => setCurrentPage(i)}
+                                            >
+                                                {i + 1}
+                                            </PaginationLink>
+                                        </PaginationItem>
+                                    ))}
+                                    <PaginationItem>
+                                        <PaginationNext
+                                            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1))}
+                                        // disabled={currentPage === totalPages - 1}
+                                        />
+                                    </PaginationItem>
+                                </PaginationContent>
+                            </Pagination>
+                        </div>
+                    </>
+                }
             </CardContent>
         </Card>
     </div>)

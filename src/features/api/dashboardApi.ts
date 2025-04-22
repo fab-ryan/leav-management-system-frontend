@@ -1,4 +1,4 @@
-import { GetEmployeeDashboardResponse } from '@/types'
+import { GetEmployeeDashboardResponse, ManagerDashboardResponse } from '@/types'
 import { baseUrl } from '@/lib/utils';
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
@@ -23,7 +23,16 @@ export const dashboardApi = createApi({
                 url: '/dashboard/employee'
             }),
             providesTags: ["dashboard"]
+        }),
+        getManagerDashboard: builder.query<ManagerDashboardResponse, { department: string }>({
+            query: ({ department }) => ({
+                url: '/dashboard/manager',
+                params: { department }
+            }),
+            providesTags: ["dashboard"]
         })
     })
 });
-export const { useGetEmployeeDashboardQuery } = dashboardApi;
+export const { useGetEmployeeDashboardQuery,
+    useGetManagerDashboardQuery
+} = dashboardApi;

@@ -3,11 +3,11 @@ import React from "react";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
-  
+
   return (
-    <footer className="bg-white border-t border-gray-200 py-4 px-6 text-center text-sm text-gray-500">
+    <footer className="bg-background-content border-t border-border py-4 px-6 text-center text-sm text-muted-foreground">
       <div className="container mx-auto">
-        <p>© {currentYear} LeaveFlow. All rights reserved.</p>
+        <p>© {currentYear} IST Africa. All rights reserved.</p>
       </div>
     </footer>
   );

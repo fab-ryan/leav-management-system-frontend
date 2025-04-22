@@ -40,7 +40,7 @@ export const notificationApi = createApi({
         }),
         markAllNotificationsAsRead: builder.mutation<void, void>({
             query: () => ({
-                url: '/notifications/read',
+                url: '/notifications/read-all',
                 method: 'put'
             }),
             invalidatesTags: ['Notifications']

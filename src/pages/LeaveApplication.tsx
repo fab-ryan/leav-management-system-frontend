@@ -12,7 +12,7 @@ const LeaveApplication = () => {
   return (
     <>
       <Helmet>
-        <title>Apply for Leave - LeaveFlow</title>
+        <title>Apply for Leave - IST Africa</title>
       </Helmet>
       <div className="min-h-screen flex flex-col bg-gray-50">
         <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />

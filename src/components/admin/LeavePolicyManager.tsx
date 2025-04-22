@@ -39,6 +39,11 @@ const leavePolicySchema = z.object({
     personalLeave: z.number().min(1, 'Personal leave must be 0 or greater'),
     carryForward: z.number().min(1, 'Carry forward must be 0 or greater'),
     noticePeriod: z.number().min(1, 'Notice period must be 0 or greater'),
+    maternityLeave: z.number().min(1, 'Maternity leave must be 0 or greater'),
+    paternityLeave: z.number().min(1, 'Paternity leave must be 0 or greater'),
+    unpaidLeave: z.number().min(1, 'Unpaid leave must be 0 or greater'),
+    otherLeave: z.number().min(1, 'Other leave must be 0 or greater'),
+
     description: z.string()
 });
 
@@ -48,7 +53,7 @@ type LeavePolicyValue = z.infer<typeof leavePolicySchema> & { id?: string };
 export const LeavePolicy = () => {
 
     const [isAddDialogOpen, setAddPolicyDialog] = useState<boolean>(false);
-    const [selectLeavePolocyId,] = useState("");
+    const [selectLeavePolocyId, setSelectLeavePolocyId] = useState("");
     const [editingPolicy, setEditingPolicy] = useState<boolean>(false);
     const [requiresDocumentation, setRequiresDocumentation] = useState(true);
     const [requiresApproval, setRequiresApproval] = useState(true);
@@ -80,11 +85,7 @@ export const LeavePolicy = () => {
         }
     }, [updateLeaveStatusStates.isSuccess, refetchPolicies]);
 
-    useEffect(() => {
-        if (selectLeavePolocyId) {
-            refetch()
-        }
-    }, [selectLeavePolocyId])
+
 
     const form = useForm<LeavePolicyValue>({
         resolver: zodResolver(leavePolicySchema),
@@ -95,6 +96,10 @@ export const LeavePolicy = () => {
             personalLeave: 0,
             carryForward: 0,
             noticePeriod: 0,
+            maternityLeave: 0,
+            paternityLeave: 0,
+            unpaidLeave: 0,
+            otherLeave: 0,
             description: ""
 
         }
@@ -110,8 +115,13 @@ export const LeavePolicy = () => {
         form.setValue("carryForward", data?.carryForwardLimit);
         form.setValue("noticePeriod", data?.minDaysBeforeRequest);
         form.setValue("description", data?.description);
+        form.setValue("maternityLeave", data?.maternityAllowance);
+        form.setValue("paternityLeave", data?.paternityAllowance);
+        form.setValue("unpaidLeave", data?.unpaidAllowance);
+        form.setValue("otherLeave", data?.otherAllowance);
         setRequiresApproval(data?.requiresApproval)
         setRequiresDocumentation(data?.requiresDocumentation)
+        setSelectLeavePolocyId(data?.id)
         setAddPolicyDialog(true);
     };
 
@@ -127,7 +137,11 @@ export const LeavePolicy = () => {
                 carryForwardLimit: data.carryForward,
                 requiresApproval: requiresApproval,
                 requiresDocumentation,
-                minDaysBeforeRequest: data.noticePeriod
+                minDaysBeforeRequest: data.noticePeriod,
+                maternityAllowance: data.maternityLeave,
+                paternityAllowance: data.paternityLeave,
+                unpaidAllowance: data.unpaidLeave,
+                otherAllowance: data.otherLeave,
             }
         }).unwrap().then(() => {
             toast({
@@ -150,7 +164,7 @@ export const LeavePolicy = () => {
     const handleUpdatePolicy = (data: LeavePolicyValue) => {
         if (updatesLeaveState.isLoading) return;
         updateLeave({
-            id: data.id,
+            id: selectLeavePolocyId,
             data: {
                 annualAllowance: data.annualLeave,
                 description: data.description,
@@ -159,6 +173,10 @@ export const LeavePolicy = () => {
                 personalAllowance: data.personalLeave,
                 carryForwardLimit: data.carryForward,
                 requiresApproval: requiresApproval,
+                maternityAllowance: data.maternityLeave,
+                paternityAllowance: data.paternityLeave,
+                unpaidAllowance: data.unpaidLeave,
+                otherAllowance: data.otherLeave,
                 requiresDocumentation,
                 minDaysBeforeRequest: data.noticePeriod
             }
@@ -214,7 +232,7 @@ export const LeavePolicy = () => {
                             Add Policy
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="sm:max-w-[800px]">
                         <DialogHeader>
                             <DialogTitle>{editingPolicy ? 'Edit Policy' : 'Add New Policy'}</DialogTitle>
                             <DialogDescription>
@@ -237,7 +255,7 @@ export const LeavePolicy = () => {
                                             </FormItem>
                                         )}
                                     />
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-3 gap-4">
                                         <FormField
                                             control={form.control}
                                             name="annualLeave"
@@ -328,6 +346,80 @@ export const LeavePolicy = () => {
                                                 </FormItem>
                                             )}
                                         />
+                                        <FormField
+                                            control={form.control}
+                                            name="maternityLeave"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Maternity Leave (days)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Days per year"
+                                                            {...field}
+                                                            onChange={e => field.onChange(Number(e.target.value))}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="paternityLeave"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Paternity Leave (days)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Days per year"
+                                                            {...field}
+                                                            onChange={e => field.onChange(Number(e.target.value))}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="unpaidLeave"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Unpaid Leave (days)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Days per year"
+                                                            {...field}
+
+                                                            onChange={e => field.onChange(Number(e.target.value))}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="otherLeave"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Other Leave (days)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Days per year"
+                                                            {...field}
+                                                            onChange={e => field.onChange(Number(e.target.value))}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
 
                                     </div>
                                     <div className="flex justify-start text-center">
@@ -431,7 +523,7 @@ export const LeavePolicy = () => {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            onClick={() => openEditDialog(policy)}
+                                                            onClick={() => { openEditDialog(policy) }}
                                                         >
                                                             <Edit className="h-4 w-4" />
                                                         </Button>

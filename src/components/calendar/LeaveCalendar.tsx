@@ -25,6 +25,7 @@ const LeaveCalendar = () => {
   const { data: approvedLeavesData } = useGetAllLeaveApplicationsByStatusQuery({
     status: "approved".toLocaleUpperCase(),
   })
+
   const { data: holidaysData } = useGetAllHolidaysQuery()
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [viewMode, setViewMode] = useState<"department" | "all">("department");
@@ -36,15 +37,18 @@ const LeaveCalendar = () => {
       skip: !date,
       refetchOnMountOrArgChange: true,
     })
+  const { data: leaveApplications, isLoading: isLoadingLeaveApplications } = useGetLeaveApplicationByDateQuery({
+    date: formatDateToApi(new Date().toISOString()),
+    department: viewMode === "all" ? null : "department"
+  }, {
+    refetchOnMountOrArgChange: true,
 
-  const leavedTypeColors = [
-    "#e5f0f8",
-    "#f8e5e5",
-    "#e5f0f8",
-    "#f8e5e5",
-    "#e5f0f8",
-  ];
+  })
 
+  const isWeekend = (date: Date) => {
+    const day = date.getDay();
+    return day === 0 || day === 6;
+  };
 
 
   return (
@@ -76,8 +80,14 @@ const LeaveCalendar = () => {
                 onSelect={setDate}
                 className="rounded-md border p-3 pointer-events-auto"
                 modifiers={{
-                  holiday: (date) => holidaysData?.holidays?.some(holiday => new Date(holiday.date) === date),
-                  teamLeave: (date) => approvedLeavesData?.leave_applications?.some(leave => new Date(leave.startDate) <= date && new Date(leave.endDate) >= date),
+                  holiday: holidaysData?.holidays?.map((holiday) => new Date(holiday.date)),
+                  teamLeave: (date) => leaveApplications?.leave_applications?.some(leave => new Date(leave.startDate) <= date && new Date(leave.endDate) >= date),
+                  weekend: (date) => isWeekend(date),
+                }}
+                disabled={(date) => {
+                  if (isWeekend(date)) {
+                    return true;
+                  }
                 }}
                 modifiersStyles={{
                   holiday: {
@@ -89,6 +99,10 @@ const LeaveCalendar = () => {
                     backgroundColor: "#e5f0f8",
                     color: "#1e40af",
                   },
+                  weekend: {
+                    backgroundColor: "#f8e5e5",
+                    color: "#b91c1b",
+                  },
                 }}
               />
               <div className="mt-4 flex gap-4">
@@ -97,19 +111,13 @@ const LeaveCalendar = () => {
                   <span className="text-sm">Holiday</span>
                 </div>
 
-                {
-                  approvedLeavesData?.leave_applications?.length > 0 &&
-                  Array.from(new Set(approvedLeavesData?.leave_applications?.map(leave => leaveTypeDisplay(leave.leaveType.toLowerCase())))).map(
-                    (leaveType) => (
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full bg-[${leavedTypeColors[Math.floor(Math.random() * leavedTypeColors.length)]}]
-                         mr-2`}></div>
-                        <span className="text-sm">{leaveType}</span>
-                      </div>
-                    )
-                  )
 
-                }
+                <div className="flex items-center">
+                  <div className={`w-4 h-4 rounded-full bg-[#e5f0f8]
+                         mr-2`}></div>
+                  <span className="text-sm">Leaves</span>
+                </div>
+
               </div>
             </CardContent>
           </Card>
@@ -155,14 +163,16 @@ const LeaveCalendar = () => {
                       >
                         <div>
                           <p className="font-medium">
-                            {leave.employee.name}
+                            {leave.employee.name} <span className="text-xs text-gray-400">({leave.employee.email} / {leave.employee.role.toLocaleLowerCase()})</span>
                           </p>
                           <p className="text-sm text-gray-600">
-                            {leave.leaveType === "annual" ? "Annual Leave" : "Sick Leave"}
+                            {leaveTypeDisplay(leave.leaveType)} {leave.isHalfDay && leave.isMorning ? "Morning" : leave.isHalfDay && !leave.isMorning ? "Afternoon" : ""}
                           </p>
                         </div>
-                        <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                          {leave.isHalfDay ? "Half Day" : "Full Day"}
+                        <Badge variant="outline" className="bg-blue-100 text-blue-800 text-xs text-nowrap ">
+                          {
+                            formatDate(leave.startDate) + " - " + formatDate(leave.endDate)
+                          }
                         </Badge>
                       </li>
                     ))}
@@ -181,7 +191,7 @@ const LeaveCalendar = () => {
           <CardTitle>Upcoming Leaves</CardTitle>
         </CardHeader>
         <CardContent>
-          {approvedLeavesData?.leave_applications?.length > 0 ? (
+          {approvedLeavesData?.leave_applications?.content?.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -192,7 +202,7 @@ const LeaveCalendar = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {approvedLeavesData?.leave_applications?.map((leave) => (
+                {approvedLeavesData?.leave_applications?.content?.slice(0, 5).map((leave) => (
                   <TableRow key={leave.id}>
                     <TableCell>
                       {leave.employee.name}

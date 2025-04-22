@@ -11,15 +11,15 @@ interface DefaultProps {
 
 }
 
-export  default function DefaultLayout({ children, title }: DefaultProps) {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-    return (
+export default function DefaultLayout({ children, title }: DefaultProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  return (
     <>
-    <Helmet>
-      <title>{title ?? 'Manager'} - LeaveFlow</title>
-    </Helmet>
-    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Helmet>
+        <title>{title ?? 'Manager'} - IST Africa</title>
+      </Helmet>
+      <div className="min-h-screen flex flex-col bg-gray-50">
         <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
         <div className="flex flex-1">
           <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
