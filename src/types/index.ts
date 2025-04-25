@@ -1,7 +1,7 @@
 
 export type UserRole = 'staff' | 'manager' | 'admin';
 
-export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 export type LeaveType = 'annual' | 'sick' | 'personal' | 'maternity' | 'paternity' | 'unpaid' | 'other';
 
@@ -52,14 +52,6 @@ export interface Holiday {
   isRestricted: boolean;
 }
 
-export interface Notification {
-  id: string;
-  userId: string;
-  title: string;
-  message: string;
-  isRead: boolean;
-  createdAt: Date;
-}
 
 export interface LeavePolicy {
   id: string;

@@ -4,17 +4,19 @@ import { Calendar, Clock, FileCheck, UserCheck } from "lucide-react";
 import { LeaveBalanceCard } from "./LeaveBalanceCard";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useGetEmployeeDashboardQuery } from "@/features/api";
 
 const DashboardOverview = () => {
-  // Mock data - would come from API
-  const pendingRequests = 1;
-  const approvedRequests = 5;
+
+  const { data: employeeData } = useGetEmployeeDashboardQuery()
+  const pendingRequests = employeeData?.dashboard?.pendingLeavesCount || 0;
+  const approvedRequests = employeeData?.dashboard?.approvedLeavesCount || 0;
   const upcomingLeave = {
-    type: "Annual Leave",
-    startDate: new Date(2025, 3, 20),
-    endDate: new Date(2025, 3, 25)
+    type: employeeData?.dashboard?.upcomingLeaves[0]?.leaveType || "Annual Leave",
+    startDate: new Date(employeeData?.dashboard?.upcomingLeaves[0]?.startDate || new Date()),
+    endDate: new Date(employeeData?.dashboard?.upcomingLeaves[0]?.endDate || new Date())
   };
-  
+
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -27,7 +29,7 @@ const DashboardOverview = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row gap-6">
         <LeaveBalanceCard />
-        
+
         <Card className="flex-1">
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>

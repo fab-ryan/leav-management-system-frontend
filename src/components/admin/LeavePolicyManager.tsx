@@ -1,4 +1,3 @@
-import { useLeaveTypePoliciesQuery, useLeaveTypePolicyQuery } from "@/features/api";
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,17 +9,6 @@ import {
     FormLabel,
     FormMessage,
 } from '@/components/ui/form';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 
 import {
     Dialog,
@@ -31,22 +19,18 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-// import {
-//     Select,
-//     SelectContent,
-//     SelectItem,
-//     SelectTrigger,
-//     SelectValue,
-// } from "@/components/ui/select";
 
-import { Trash, Edit, Plus, } from "lucide-react"
+
+import { Edit, Plus, Loader, } from "lucide-react"
 // import { format } from "path";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { LeaveRequest } from "@/types";
 import { Card, CardContent } from "../ui/card";
 import { TableHeader, TableRow, TableHead, TableBody, TableCell, Table } from "@/components/ui/table";
+import { Switch } from "../ui/switch";
+import { useLeaveTypePoliciesQuery, useLeaveTypePolicyQuery, usePostLeaveTypPolicyMutation, useUpdateLeaveTypPolicyMutation, useUpdateLeaveStatusPolicyMutation } from "@/features/api";
+import { toast } from "@/hooks/use-toast";
 
 const leavePolicySchema = z.object({
     name: z.string().min(1, 'Policy name is required'),
@@ -55,6 +39,11 @@ const leavePolicySchema = z.object({
     personalLeave: z.number().min(1, 'Personal leave must be 0 or greater'),
     carryForward: z.number().min(1, 'Carry forward must be 0 or greater'),
     noticePeriod: z.number().min(1, 'Notice period must be 0 or greater'),
+    maternityLeave: z.number().min(1, 'Maternity leave must be 0 or greater'),
+    paternityLeave: z.number().min(1, 'Paternity leave must be 0 or greater'),
+    unpaidLeave: z.number().min(1, 'Unpaid leave must be 0 or greater'),
+    otherLeave: z.number().min(1, 'Other leave must be 0 or greater'),
+
     description: z.string()
 });
 
@@ -64,23 +53,39 @@ type LeavePolicyValue = z.infer<typeof leavePolicySchema> & { id?: string };
 export const LeavePolicy = () => {
 
     const [isAddDialogOpen, setAddPolicyDialog] = useState<boolean>(false);
-    const [updatePolicyDialog, setUpdatePolicyDialog] = useState<boolean>(false);
-    const [selectLeavePolocyId, setSelectedLeaveId] = useState("");
+    const [selectLeavePolocyId, setSelectLeavePolocyId] = useState("");
     const [editingPolicy, setEditingPolicy] = useState<boolean>(false);
-    const [requestDetailOpen, setRequestDetailOpen] = useState(false);
-    const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
-    const { isLoading: isLoadingLeavePolicy, data: leavePoliciesData } = useLeaveTypePoliciesQuery()
+    const [requiresDocumentation, setRequiresDocumentation] = useState(true);
+    const [requiresApproval, setRequiresApproval] = useState(true);
 
-    const { isLoading: isLoadingSingleLeavePolicy, refetch } = useLeaveTypePolicyQuery({ id: selectLeavePolocyId }, {
+    const { isLoading: isLoadingLeavePolicy, data: leavePoliciesData, refetch: refetchPolicies } = useLeaveTypePoliciesQuery()
+    const [addLeaves, leaveState] = usePostLeaveTypPolicyMutation()
+    const [updateLeave, updatesLeaveState] = useUpdateLeaveTypPolicyMutation()
+    const [updateLeaveStatus, updateLeaveStatusStates] = useUpdateLeaveStatusPolicyMutation()
+
+    const { refetch } = useLeaveTypePolicyQuery({ id: selectLeavePolocyId }, {
         skip: true
     })
 
+    useEffect(() => {
+        if (leaveState.isSuccess) {
+            refetchPolicies();
+        }
+    }, [leaveState.isSuccess, refetchPolicies]);
 
     useEffect(() => {
-        if (selectLeavePolocyId) {
-            refetch()
+        if (updatesLeaveState.isSuccess) {
+            refetchPolicies();
         }
-    }, [setSelectedLeaveId])
+    }, [updatesLeaveState.isSuccess, refetchPolicies]);
+
+    useEffect(() => {
+        if (updateLeaveStatusStates.isSuccess) {
+            refetchPolicies();
+        }
+    }, [updateLeaveStatusStates.isSuccess, refetchPolicies]);
+
+
 
     const form = useForm<LeavePolicyValue>({
         resolver: zodResolver(leavePolicySchema),
@@ -91,16 +96,16 @@ export const LeavePolicy = () => {
             personalLeave: 0,
             carryForward: 0,
             noticePeriod: 0,
+            maternityLeave: 0,
+            paternityLeave: 0,
+            unpaidLeave: 0,
+            otherLeave: 0,
             description: ""
 
         }
     })
 
-    // Open request detail dialog
-    const openRequestDetail = (request: LeaveRequest) => {
-        setSelectedRequest(request);
-        setRequestDetailOpen(true);
-    };
+
     const openEditDialog = (data: any) => {
         setEditingPolicy(true);
         form.setValue("name", data?.name);
@@ -110,25 +115,110 @@ export const LeavePolicy = () => {
         form.setValue("carryForward", data?.carryForwardLimit);
         form.setValue("noticePeriod", data?.minDaysBeforeRequest);
         form.setValue("description", data?.description);
+        form.setValue("maternityLeave", data?.maternityAllowance);
+        form.setValue("paternityLeave", data?.paternityAllowance);
+        form.setValue("unpaidLeave", data?.unpaidAllowance);
+        form.setValue("otherLeave", data?.otherAllowance);
+        setRequiresApproval(data?.requiresApproval)
+        setRequiresDocumentation(data?.requiresDocumentation)
+        setSelectLeavePolocyId(data?.id)
         setAddPolicyDialog(true);
     };
 
     const handleAddPolicy = (data: LeavePolicyValue) => {
-        // Add your API call here
-        console.log('Adding policy:', data);
-        setAddPolicyDialog(false);
-        form.reset();
-        // toast.success('Policy added successfully');
+        if (leaveState.isLoading) return;
+        addLeaves({
+            data: {
+                annualAllowance: data.annualLeave,
+                description: data.description,
+                name: data.name,
+                sickAllowance: data.sickLeave,
+                personalAllowance: data.personalLeave,
+                carryForwardLimit: data.carryForward,
+                requiresApproval: requiresApproval,
+                requiresDocumentation,
+                minDaysBeforeRequest: data.noticePeriod,
+                maternityAllowance: data.maternityLeave,
+                paternityAllowance: data.paternityLeave,
+                unpaidAllowance: data.unpaidLeave,
+                otherAllowance: data.otherLeave,
+            }
+        }).unwrap().then(() => {
+            toast({
+                title: "Success",
+                description: "Leave Policy has been created",
+                variant: "default",
+            });
+            setAddPolicyDialog(false);
+            form.reset();
+        }).catch(error => {
+            console.error(error);
+            toast({
+                title: "Error",
+                description: "Failed to create leave policy",
+                variant: "destructive",
+            });
+        });
     };
 
     const handleUpdatePolicy = (data: LeavePolicyValue) => {
-        // Add your API call here
-        console.log('Updating policy:', data);
-        setAddPolicyDialog(false);
-        setEditingPolicy(false);
-        form.reset();
-        // toast.success('Policy updated successfully');
+        if (updatesLeaveState.isLoading) return;
+        updateLeave({
+            id: selectLeavePolocyId,
+            data: {
+                annualAllowance: data.annualLeave,
+                description: data.description,
+                name: data.name,
+                sickAllowance: data.sickLeave,
+                personalAllowance: data.personalLeave,
+                carryForwardLimit: data.carryForward,
+                requiresApproval: requiresApproval,
+                maternityAllowance: data.maternityLeave,
+                paternityAllowance: data.paternityLeave,
+                unpaidAllowance: data.unpaidLeave,
+                otherAllowance: data.otherLeave,
+                requiresDocumentation,
+                minDaysBeforeRequest: data.noticePeriod
+            }
+        }).unwrap().then(() => {
+            toast({
+                title: "Success",
+                description: "Leave Policy has been updated",
+                variant: "default",
+            });
+            setAddPolicyDialog(false);
+            setEditingPolicy(false);
+            form.reset();
+        }).catch(error => {
+            console.error(error);
+            toast({
+                title: "Error",
+                description: "Failed to update leave policy",
+                variant: "destructive",
+            });
+        });
     };
+    const handleUpdateStatus = ({ id, status }: { id: string, status: boolean }) => {
+        if (updateLeaveStatusStates.isLoading) return;
+        updateLeaveStatus({
+            id, status
+        }).unwrap().then(() => {
+            toast({
+                title: "Success",
+                description: `Policy has been ${status ? 'activated' : 'deactivated'}`,
+                variant: "default",
+            });
+        }).catch(error => {
+            console.error(error);
+            toast({
+                title: "Error",
+                description: "Failed to update policy status",
+                variant: "destructive",
+            });
+        });
+    }
+
+
     return (
         <div className="">
             <div className="flex justify-between items-center mb-2">
@@ -142,7 +232,7 @@ export const LeavePolicy = () => {
                             Add Policy
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="sm:max-w-[800px]">
                         <DialogHeader>
                             <DialogTitle>{editingPolicy ? 'Edit Policy' : 'Add New Policy'}</DialogTitle>
                             <DialogDescription>
@@ -165,7 +255,7 @@ export const LeavePolicy = () => {
                                             </FormItem>
                                         )}
                                     />
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-3 gap-4">
                                         <FormField
                                             control={form.control}
                                             name="annualLeave"
@@ -256,7 +346,102 @@ export const LeavePolicy = () => {
                                                 </FormItem>
                                             )}
                                         />
+                                        <FormField
+                                            control={form.control}
+                                            name="maternityLeave"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Maternity Leave (days)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Days per year"
+                                                            {...field}
+                                                            onChange={e => field.onChange(Number(e.target.value))}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="paternityLeave"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Paternity Leave (days)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Days per year"
+                                                            {...field}
+                                                            onChange={e => field.onChange(Number(e.target.value))}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="unpaidLeave"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Unpaid Leave (days)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Days per year"
+                                                            {...field}
+
+                                                            onChange={e => field.onChange(Number(e.target.value))}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="otherLeave"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Other Leave (days)</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Days per year"
+                                                            {...field}
+                                                            onChange={e => field.onChange(Number(e.target.value))}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+
                                     </div>
+                                    <div className="flex justify-start text-center">
+                                        <label className="text-right text-sm text-bold">Requires Documentation</label>
+                                        <div className="ml-4">
+                                            <Switch
+                                                checked={requiresDocumentation}
+                                                onCheckedChange={(checked) => setRequiresDocumentation(checked)}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-start text-center">
+                                        <label className="text-right text-sm text-bold">Requires Approval</label>
+                                        <div className="ml-4">
+                                            <Switch
+                                                checked={requiresApproval}
+                                                onCheckedChange={(checked) => setRequiresApproval(checked)}
+                                            />
+                                        </div>
+
+                                    </div>
+
                                     <FormField
                                         control={form.control}
                                         name="description"
@@ -274,6 +459,7 @@ export const LeavePolicy = () => {
                                             </FormItem>
                                         )}
                                     />
+
                                 </div>
                                 <DialogFooter>
                                     <Button variant="outline" onClick={() => {
@@ -295,63 +481,61 @@ export const LeavePolicy = () => {
 
             <Card>
                 <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Policy Name</TableHead>
-                                <TableHead>Annual</TableHead>
-                                <TableHead>Sick</TableHead>
-                                <TableHead>Personal</TableHead>
-                                <TableHead>Carry Forward</TableHead>
-                                <TableHead>Notice Period</TableHead>
-                                <TableHead>Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {leavePoliciesData?.policies?.map((policy) => (
-                                <TableRow key={policy.id}>
-                                    <TableCell className="font-medium">{policy.name}</TableCell>
-                                    <TableCell>{policy.annualAllowance} days</TableCell>
-                                    <TableCell>{policy.sickAllowance} days</TableCell>
-                                    <TableCell>{policy.personalAllowance} days</TableCell>
-                                    <TableCell>{policy.carryForwardLimit} days max</TableCell>
-                                    <TableCell>{policy.minDaysBeforeRequest} days</TableCell>
-                                    <TableCell>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => openEditDialog(policy)}
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon">
-                                                        <Trash className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This action cannot be undone. This will permanently delete the policy.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => { }}>
-                                                            Delete
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    {
+                        isLoadingLeavePolicy ?
+                            <div className="p-4">
+                                <Loader className="w-[40px] h-[40p] m-auto " />
+                            </div>
+                            :
+                            (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Policy Name</TableHead>
+                                            <TableHead>Annual</TableHead>
+                                            <TableHead>Sick</TableHead>
+                                            <TableHead>Personal</TableHead>
+                                            <TableHead>Carry Forward</TableHead>
+                                            <TableHead>Notice Period</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {leavePoliciesData?.policies?.map((policy) => (
+                                            <TableRow key={policy.id}>
+                                                <TableCell className="font-medium">{policy.name}</TableCell>
+                                                <TableCell>{policy.annualAllowance} days</TableCell>
+                                                <TableCell>{policy.sickAllowance} days</TableCell>
+                                                <TableCell>{policy.personalAllowance} days</TableCell>
+                                                <TableCell>{policy.carryForwardLimit} days max</TableCell>
+                                                <TableCell>{policy.minDaysBeforeRequest} days</TableCell>
+                                                <TableCell
+                                                    onClick={() => handleUpdateStatus({ id: policy.id, status: !policy.isActive })}
+                                                    className='cursor-pointer'
+                                                >
+                                                    {
+                                                        policy.isActive ? <div className="p-1 bg-green-500 text-white rounded text-center">Active</div> : <div className="p-1 bg-red-500 text-white rounded text-center">In Active</div>
+                                                    }
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => { openEditDialog(policy) }}
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )
+                    }
+
                 </CardContent>
             </Card>
         </div>

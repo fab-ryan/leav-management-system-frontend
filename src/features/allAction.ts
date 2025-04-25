@@ -1,5 +1,6 @@
-import { logout, setUser } from "./auth/authSlice";
+import { logout, setUser, setProfileCompleted } from "./auth/authSlice";
 export default {
     logout,
-    setUser
+    setUser,
+    setProfileCompleted
 }

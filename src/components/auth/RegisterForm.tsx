@@ -17,6 +17,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { baseUrl } from "@/lib/utils";
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -30,6 +31,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 const RegisterForm = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMicrosoft, setIsLoadingMicrosoft] = useState(false);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -44,7 +46,7 @@ const RegisterForm = () => {
   const onSubmit = (data: RegisterFormValues) => {
     setIsLoading(true);
     console.log("Registration data:", data);
-    
+
     // Simulate registration process
     setTimeout(() => {
       setIsLoading(false);
@@ -53,24 +55,22 @@ const RegisterForm = () => {
   };
 
   const handleMicrosoftRegister = () => {
-    setIsLoading(true);
-    console.log("Registering with Microsoft...");
-    
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate("/dashboard");
-    }, 1000);
+    setIsLoadingMicrosoft(true);
+    fetch(baseUrl + "/auth/microsoft/login", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        window.location.href = data?.link;
+      })
+
+
   };
 
-  const handleGoogleRegister = () => {
-    setIsLoading(true);
-    console.log("Registering with Google...");
-    
-    setTimeout(() => {
-      setIsLoading(false);
-      navigate("/dashboard");
-    }, 1000);
-  };
 
   return (
     <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md mx-auto">
@@ -88,7 +88,7 @@ const RegisterForm = () => {
         <div className="grid grid-cols-1 gap-4">
           <Button
             onClick={handleMicrosoftRegister}
-            disabled={isLoading}
+            disabled={isLoadingMicrosoft}
             className="w-full bg-[#2f2f2f] hover:bg-[#1f1f1f] text-white py-2 px-4 rounded flex items-center justify-center gap-2"
           >
             <svg
@@ -103,20 +103,12 @@ const RegisterForm = () => {
               <path d="M11 23H0V12H11V23Z" fill="#00ADEF" />
               <path d="M23 23H12V12H23V23Z" fill="#FBBC09" />
             </svg>
-            {isLoading ? "Registering..." : "Register with Microsoft"}
+            {isLoadingMicrosoft ? "Registering..." : "Register with Microsoft"}
           </Button>
-          
-          <Button
-            onClick={handleGoogleRegister}
-            disabled={isLoading}
-            variant="outline"
-            className="w-full py-2 px-4 rounded flex items-center justify-center gap-2"
-          >
-            <FcGoogle className="h-5 w-5" />
-            {isLoading ? "Registering..." : "Register with Google"}
-          </Button>
+
+
         </div>
-        
+
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
@@ -125,7 +117,7 @@ const RegisterForm = () => {
             <span className="bg-white px-2 text-gray-500">Or register with email</span>
           </div>
         </div>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -141,7 +133,7 @@ const RegisterForm = () => {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="email"
@@ -155,7 +147,7 @@ const RegisterForm = () => {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="password"
@@ -169,7 +161,7 @@ const RegisterForm = () => {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="department"
@@ -183,10 +175,10 @@ const RegisterForm = () => {
                 </FormItem>
               )}
             />
-            
-            <Button 
-              type="submit" 
-              className="w-full" 
+
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading}
             >
               {isLoading ? "Creating account..." : "Create account"}

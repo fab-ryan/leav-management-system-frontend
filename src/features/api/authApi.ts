@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { LoginResponse } from '@/types';
+import { LoginResponse, EmployeeProfileResponse } from '@/types';
 import { baseUrl } from '@/lib/utils';
 
 
@@ -14,7 +14,10 @@ export const authApi = createApi({
     baseQuery: fetchBaseQuery({
         baseUrl: baseUrl,
         prepareHeaders: (headers) => {
-            // You can add auth headers here if needed
+            const token = localStorage.getItem('token');
+            if (token) {
+                headers.set('authorization', `Bearer ${token}`);
+            }
             return headers;
         },
     }),
@@ -26,7 +29,24 @@ export const authApi = createApi({
                 body: credentials,
             }),
         }),
+        userProfile: builder.query<EmployeeProfileResponse, void>({
+            query: () => ({
+                url: '/auth/me',
+                method: 'GET',
+            }),
+        }),
+        updateProfile: builder.mutation<EmployeeProfileResponse, any>({
+            query: (profile) => ({
+                url: '/employees/profile',
+                method: 'PATCH',
+                body: profile,
+            }),
+        }),
     }),
 });
 
-export const { useLoginMutation } = authApi; 
+export const { useLoginMutation,
+    useUserProfileQuery,
+    useLazyUserProfileQuery,
+    useUpdateProfileMutation
+} = authApi; 

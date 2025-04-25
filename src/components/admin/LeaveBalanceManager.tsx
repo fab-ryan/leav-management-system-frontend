@@ -1,17 +1,16 @@
-
-import { useState } from "react";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import { useState, useEffect } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -22,88 +21,110 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Save, Edit } from "lucide-react";
 import UserAvatar from "@/components/ui/UserAvatar";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useGetAllLeavePoliciesBalanceQuery, useUpdateLeaveBalanceByAdminMutation } from "@/features/api/policyApi";
+import { LeaveBalance, LeaveBalances } from "@/types";
+import { formatDate, getProfilePictureUrl } from "@/lib/utils";
 
-type EmployeeBalance = {
-  id: string;
-  name: string;
-  email: string;
-  department: string;
-  annual: number;
-  sick: number;
-  personal: number;
-  carryForward: number;
-};
+const leaveBalanceSchema = z.object({
+  annualBalance: z.number().min(1, 'Annual leave must be 0 or greater'),
+  sickBalance: z.number().min(1, 'Sick leave must be 0 or greater'),
+  personalBalance: z.number().min(1, 'Personal leave must be 0 or greater'),
+  carryForwardBalance: z.number().min(1, 'Carry forward must be 0 or greater'),
+  maternityBalance: z.number().min(1, 'Maternity leave must be 0 or greater'),
+  paternityBalance: z.number().min(1, 'Paternity leave must be 0 or greater'),
+  unpaidBalance: z.number().min(1, 'Unpaid leave must be 0 or greater'),
+  otherBalance: z.number().min(1, 'Other leave must be 0 or greater'),
+});
+
+type LeaveBalanceFormValues = z.infer<typeof leaveBalanceSchema>;
+
 
 const LeaveBalanceManager = () => {
-  // Mock employee balance data
-  const [employees, setEmployees] = useState<EmployeeBalance[]>([
-    {
-      id: "1",
-      name: "John Doe",
-      email: "john.doe@example.com",
-      department: "Engineering",
-      annual: 20,
-      sick: 10,
-      personal: 3,
-      carryForward: 5,
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane.smith@example.com",
-      department: "Design",
-      annual: 18,
-      sick: 10,
-      personal: 3,
-      carryForward: 0,
-    },
-    {
-      id: "3",
-      name: "Mike Johnson",
-      email: "mike.johnson@example.com",
-      department: "Marketing",
-      annual: 15,
-      sick: 8,
-      personal: 3,
-      carryForward: 2,
-    },
-    {
-      id: "4",
-      name: "Sarah Williams",
-      email: "sarah.williams@example.com",
-      department: "HR",
-      annual: 22,
-      sick: 10,
-      personal: 5,
-      carryForward: 0,
-    },
-  ]);
+  const { data: employees, isLoading, refetch } = useGetAllLeavePoliciesBalanceQuery();
 
-  const [editingEmployee, setEditingEmployee] = useState<EmployeeBalance | null>(null);
+  const [updateLeaveBalanceByAdmin, { isLoading: isUpdating, isSuccess }] = useUpdateLeaveBalanceByAdminMutation()
+  const [editingEmployee, setEditingEmployee] = useState<LeaveBalances | null>(null);
   const [adjustmentDialog, setAdjustmentDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Filter employees based on search query
-  const filteredEmployees = employees.filter(employee => 
-    employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
-  const handleAdjustment = () => {
+  const form = useForm<LeaveBalanceFormValues>({
+    resolver: zodResolver(leaveBalanceSchema),
+    defaultValues: {
+      annualBalance: 0,
+      sickBalance: 0,
+      personalBalance: 0,
+      carryForwardBalance: 0,
+      maternityBalance: 0,
+      paternityBalance: 0,
+      unpaidBalance: 0,
+      otherBalance: 0,
+    }
+  });
+  useEffect(() => {
+    if (isSuccess) {
+      refetch();
+    }
+  }, [isSuccess, refetch]);
+
+  useEffect(() => {
+    if (editingEmployee) {
+      form.setValue('annualBalance', editingEmployee.annualBalance);
+      form.setValue('sickBalance', editingEmployee.sickBalance);
+      form.setValue('personalBalance', editingEmployee.personalBalance);
+      form.setValue('carryForwardBalance', editingEmployee.carryForwardBalance);
+      form.setValue('maternityBalance', editingEmployee.maternityBalance);
+      form.setValue('paternityBalance', editingEmployee.paternityBalance);
+      form.setValue('unpaidBalance', editingEmployee.unpaidBalance);
+      form.setValue('otherBalance', editingEmployee.otherBalance);
+    }
+  }, [editingEmployee, form]);
+
+  // Filter employees based on search query
+  const filteredEmployees = employees?.leave_balances?.filter(employee =>
+    employee.employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    employee.employee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    employee.employee.department?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
+
+  const handleAdjustment = (data: LeaveBalanceFormValues) => {
     if (!editingEmployee) return;
-    
-    setEmployees(employees.map(emp => 
-      emp.id === editingEmployee.id ? editingEmployee : emp
-    ));
-    
-    toast({
-      title: "Leave balance updated",
-      description: `Updated leave balance for ${editingEmployee.name}`,
-    });
-    
-    setAdjustmentDialog(false);
-    setEditingEmployee(null);
+    if (isUpdating) return;
+    const updatedEmployee = {
+      ...editingEmployee,
+      annualBalance: data.annualBalance,
+      sickBalance: data.sickBalance,
+      personalBalance: data.personalBalance,
+      carryForwardBalance: data.carryForwardBalance,
+    };
+    updateLeaveBalanceByAdmin({ id: editingEmployee.employee.id, data: updatedEmployee }).unwrap()
+      .then((res) => {
+        toast({
+          title: "Leave balance updated",
+          description: `Updated leave balance for ${updatedEmployee.employee.name}`,
+        });
+
+        setAdjustmentDialog(false);
+        setEditingEmployee(null);
+        form.reset();
+      })
+      .catch((err) => {
+        toast({
+          title: "Error updating leave balance",
+          description: err.message,
+          variant: "destructive",
+        });
+      });
   };
 
   return (
@@ -134,52 +155,52 @@ const LeaveBalanceManager = () => {
             </svg>
           </div>
         </div>
-        
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Manual Adjustment
-        </Button>
+
+
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Employee</TableHead>
+              <TableHead>any</TableHead>
+              <TableHead>Department</TableHead>
               <TableHead>Annual Leave</TableHead>
               <TableHead>Sick Leave</TableHead>
               <TableHead>Personal Leave</TableHead>
               <TableHead>Carry Forward</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredEmployees.map((employee) => (
               <TableRow key={employee.id}>
                 <TableCell>
-                  <div className="flex items-center gap-3">
-                    <UserAvatar name={employee.name} size="sm" />
+                  <div className="flex items-center space-x-2">
+                    <UserAvatar name={employee.employee.name} size="sm"
+                      imageUrl={getProfilePictureUrl(employee.employee.profilePictureUrl ?? "")}
+                    />
                     <div>
-                      <p className="font-medium">{employee.name}</p>
-                      <p className="text-xs text-muted-foreground">{employee.department}</p>
+                      <p className="font-medium">{employee.employee.name}</p>
+                      <p className="text-sm text-muted-foreground">{employee.employee.email}</p>
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{employee.annual} days</TableCell>
-                <TableCell>{employee.sick} days</TableCell>
-                <TableCell>{employee.personal} days</TableCell>
-                <TableCell>{employee.carryForward} days</TableCell>
-                <TableCell>
+                <TableCell>{employee.employee.department?.name}</TableCell>
+                <TableCell>{employee.annualBalance} days</TableCell>
+                <TableCell>{employee.sickBalance} days</TableCell>
+                <TableCell>{employee.personalBalance} days</TableCell>
+                <TableCell>{employee.carryForwardBalance} days</TableCell>
+                <TableCell className="text-right">
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => {
                       setEditingEmployee(employee);
                       setAdjustmentDialog(true);
                     }}
                   >
                     <Edit className="h-4 w-4" />
-                    <span className="sr-only">Edit</span>
                   </Button>
                 </TableCell>
               </TableRow>
@@ -189,87 +210,198 @@ const LeaveBalanceManager = () => {
       </div>
 
       <Dialog open={adjustmentDialog} onOpenChange={setAdjustmentDialog}>
-        <DialogContent>
+        <DialogContent
+          className="sm:max-w-[800px]"
+        >
           <DialogHeader>
             <DialogTitle>Adjust Leave Balance</DialogTitle>
             <DialogDescription>
-              Update leave balance for {editingEmployee?.name}
+              Update the leave balances for {editingEmployee?.employee.name}
             </DialogDescription>
           </DialogHeader>
-          
-          {editingEmployee && (
-            <div className="grid gap-4 py-4">
-              <div className="flex items-center gap-3 mb-4">
-                <UserAvatar name={editingEmployee.name} size="md" />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleAdjustment)} className="space-y-4">
+
+              <div className="flex items-center gap-4">
+                <UserAvatar
+                  name={editingEmployee?.employee.name ?? ""}
+                  imageUrl={getProfilePictureUrl(editingEmployee?.employee.profilePictureUrl ?? "")}
+                  size="lg"
+                />
+
                 <div>
-                  <p className="font-medium">{editingEmployee.name}</p>
-                  <p className="text-sm text-muted-foreground">{editingEmployee.department}</p>
+                  <h3 className="font-medium text-lg">
+                    {editingEmployee?.employee.name}
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    Requested on {formatDate(editingEmployee?.createdAt || "")}
+                  </p>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right text-sm">Annual Leave</label>
-                <Input
-                  className="col-span-3"
-                  type="number"
-                  value={editingEmployee.annual}
-                  onChange={(e) => setEditingEmployee({
-                    ...editingEmployee,
-                    annual: Number(e.target.value)
-                  })}
-                />
+              <div className="space-y-4">
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="annualBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Annual Leave (days)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Days per year"
+                            {...field}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="sickBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sick Leave (days)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Days per year"
+                            {...field}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="personalBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Personal Leave (days)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Days per year"
+                            {...field}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="carryForwardBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Carry Forward (days)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Maximum days"
+                            {...field}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="maternityBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Maternity Leave (days)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Days per year"
+                            {...field}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="paternityBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Paternity Leave (days)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Days per year"
+                            {...field}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="unpaidBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unpaid Leave (days)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Days per year"
+                            {...field}
+
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="otherBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Other Leave (days)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Days per year"
+                            {...field}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                </div>
+
+
+
               </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right text-sm">Sick Leave</label>
-                <Input
-                  className="col-span-3"
-                  type="number"
-                  value={editingEmployee.sick}
-                  onChange={(e) => setEditingEmployee({
-                    ...editingEmployee,
-                    sick: Number(e.target.value)
-                  })}
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right text-sm">Personal Leave</label>
-                <Input
-                  className="col-span-3"
-                  type="number"
-                  value={editingEmployee.personal}
-                  onChange={(e) => setEditingEmployee({
-                    ...editingEmployee,
-                    personal: Number(e.target.value)
-                  })}
-                />
-              </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <label className="text-right text-sm">Carry Forward</label>
-                <Input
-                  className="col-span-3"
-                  type="number"
-                  value={editingEmployee.carryForward}
-                  onChange={(e) => setEditingEmployee({
-                    ...editingEmployee,
-                    carryForward: Number(e.target.value)
-                  })}
-                />
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjustmentDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAdjustment}>
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
-            </Button>
-          </DialogFooter>
+              <DialogFooter>
+
+                <Button type="submit">
+                  {editingEmployee ? 'Update' : 'Save'}
+                </Button>
+              </DialogFooter>
+            </form>
+
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
