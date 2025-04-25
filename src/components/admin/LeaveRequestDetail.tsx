@@ -14,7 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { LeaveApplication, LeaveRequest } from "@/types";
 import { Check, X, FileText, Download } from "lucide-react";
 import UserAvatar from "@/components/ui/UserAvatar";
-import { redirectToFile } from "@/lib/utils";
+import { getProfilePictureUrl, redirectToFile } from "@/lib/utils";
 
 interface LeaveRequestDetailProps {
   request: LeaveApplication | null;
@@ -110,6 +110,7 @@ const LeaveRequestDetail = ({
             <UserAvatar
               name={request.employee.name || "Unknown Employee"}
               size="lg"
+              imageUrl={getProfilePictureUrl(request.employee.profilePictureUrl ?? "")}
             />
             <div>
               <h3 className="font-medium text-lg">

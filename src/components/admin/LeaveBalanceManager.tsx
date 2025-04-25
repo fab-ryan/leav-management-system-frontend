@@ -52,7 +52,7 @@ type LeaveBalanceFormValues = z.infer<typeof leaveBalanceSchema>;
 
 const LeaveBalanceManager = () => {
   const { data: employees, isLoading, refetch } = useGetAllLeavePoliciesBalanceQuery();
- 
+
   const [updateLeaveBalanceByAdmin, { isLoading: isUpdating, isSuccess }] = useUpdateLeaveBalanceByAdminMutation()
   const [editingEmployee, setEditingEmployee] = useState<LeaveBalances | null>(null);
   const [adjustmentDialog, setAdjustmentDialog] = useState(false);
@@ -177,7 +177,9 @@ const LeaveBalanceManager = () => {
               <TableRow key={employee.id}>
                 <TableCell>
                   <div className="flex items-center space-x-2">
-                    <UserAvatar name={employee.employee.name} size="sm" />
+                    <UserAvatar name={employee.employee.name} size="sm"
+                      imageUrl={getProfilePictureUrl(employee.employee.profilePictureUrl ?? "")}
+                    />
                     <div>
                       <p className="font-medium">{employee.employee.name}</p>
                       <p className="text-sm text-muted-foreground">{employee.employee.email}</p>
@@ -221,18 +223,18 @@ const LeaveBalanceManager = () => {
             <form onSubmit={form.handleSubmit(handleAdjustment)} className="space-y-4">
 
               <div className="flex items-center gap-4">
-                    <UserAvatar
-                      name={editingEmployee?.employee.name ?? ""}
-                      imageUrl={getProfilePictureUrl(editingEmployee?.employee.profilePictureUrl ?? "")}
-                      size="lg"
-                    />
+                <UserAvatar
+                  name={editingEmployee?.employee.name ?? ""}
+                  imageUrl={getProfilePictureUrl(editingEmployee?.employee.profilePictureUrl ?? "")}
+                  size="lg"
+                />
 
                 <div>
                   <h3 className="font-medium text-lg">
                     {editingEmployee?.employee.name}
                   </h3>
                   <p className="text-muted-foreground text-sm">
-                    Requested on {formatDate( editingEmployee?.createdAt || "")}
+                    Requested on {formatDate(editingEmployee?.createdAt || "")}
                   </p>
                 </div>
               </div>

@@ -201,5 +201,5 @@ export const exportEmployeeToCSV = async ({ page, size, sort, department, role, 
 
 export const getProfilePictureUrl = (url: string) => {
   if (!url) return "";
-  return `${baseUrl}${url}`;
+  return `${baseUrl}/${url}`;
 }
